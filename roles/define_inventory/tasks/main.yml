@@ -1,0 +1,255 @@
+---
+# tasks file for define_inventory
+- block:
+  - name: read build definition
+    include_vars:
+      file: "{{ auto_dir + '/' + SYS_NAME }}"
+      name: 'environment_definition'
+
+  - ansible.builtin.debug: var=environment_definition
+
+  - name: check if required variables are defined
+    ansible.builtin.set_fact:
+      bn: "{{ 'Build name is not defined' if (environment_definition.build.name is not defined or environment_definition.build.name == none) else '' }}"
+      dm: "{{ 'Deployment model is not defined' if (environment_definition.build.deployment_model is not defined or environment_definition.build.deployment_model == none) else '' }}"
+      dr: "{{ 'Disaster recovery is not defined' if (environment_definition.build.disaster_recovery is not defined or environment_definition.build.disaster_recovery == none) else '' }}"
+      pnv: "{{ 'Primary number of vms is not defined' if (environment_definition.build.primary.number_of_stdalvms is not defined or environment_definition.build.primary.number_of_smlt == none) else '' }}"
+      pnp: "{{ 'Primary name_prefix is not defined' if (environment_definition.build.primary.name_prefix is not defined or  environment_definition.build.primary.name_prefix == none) else '' }}"
+      poc: "{{ 'Primary octets is not defined' if (environment_definition.build.primary.octets is not defined or environment_definition.build.primary.octets == none) else '' }}"
+      snv: "{{ 'Secondary number of vms is not defined' if (environment_definition.build.disaster_recovery and (environment_definition.build.secondary.number_of_stdalvms is not defined or environment_definition.build.secondary.number_of_stdalvms == none)) else '' }}"
+      snp: "{{ 'Secondary name_prefix is not defined' if (environment_definition.build.disaster_recovery and (environment_definition.build.secondary.name_prefix is not defined or environment_definition.build.secondary.name_prefix == none)) else '' }}"
+      soc: "{{ 'Secondary octets is not defined' if (environment_definition.build.disaster_recovery and (environment_definition.build.secondary.octets is not defined or environment_definition.build.secondary.octets == none)) else '' }}"
+      pdn: "{{ 'Datacenter name is not defined' if (environment_definition.datacenter.primary.name is not defined or environment_definition.datacenter.primary.name == none) else '' }}"
+      pdh: "{{ 'Primary Datacenter resources is not defined' if (environment_definition.build.deployment_model != none and environment_definition.build.deployment_model is search('a') and environment_definition.build.deployment_model is not search('h') and (environment_definition.datacenter.primary.resources is not defined or environment_definition.datacenter.primary.resources == none)) else '' }}"
+      pdc: "{{ 'Primary Datacenter cluster is not defined. Will use esxi hosts IPs to define the primary cluster name' if (environment_definition.datacenter.primary.cluster == none and environment_definition.build.deployment_model != none and environment_definition.build.deployment_model is search('a') and environment_definition.build.deployment_model is not search('h')) else '' }}"
+      pdf: "{{ 'Primary Datacenter folder is not defined. Will use default folder instead' if (environment_definition.datacenter.primary.folder == none and environment_definition.build.deployment_model != none and environment_definition.build.deployment_model is search('h') and environment_definition.build.deployment_model is not search('a')) else '' }}"
+      sdn: "{{ 'Secondary Datacenter name is not defined' if environment_definition.build.disaster_recovery and (environment_definition.datacenter.secondary.name is not defined or environment_definition.datacenter.secondary.name == none) else '' }}"
+      sdh: "{{ 'Secondary Datacenter resources is not defined' if (environment_definition.build.disaster_recovery and environment_definition.build.deployment_model != none and environment_definition.build.deployment_model is search('a') and environment_definition.build.deployment_model is not search('h') and (environment_definition.datacenter.secondary.resources is not defined or environment_definition.datacenter.secondary.resources == none)) else '' }}"
+      sdc: "{{ 'Secondary Datacenter cluster is not defined. Will use esxi hosts IPs to define the secondary cluster name' if (environment_definition.build.disaster_recovery and environment_definition.datacenter.secondary.cluster == none and environment_definition.build.deployment_model != none and environment_definition.build.deployment_model is search('a') and environment_definition.build.deployment_model is not search('h')) else '' }}"
+      sdf: "{{ 'Secondary Datacenter folder is not defined. Will use default folder instead' if (environment_definition.build.disaster_recovery and environment_definition.datacenter.secondary.folder == none and environment_definition.build.deployment_model != none and environment_definition.build.deployment_model is search('h') and environment_definition.build.deployment_model is not search('a')) else '' }}"
+
+  - ansible.builtin.debug:
+      msg: "{{ pdc }}"
+    when: pdc != ''
+
+  - ansible.builtin.debug:
+      msg: "{{ pdf }}"
+    when: pdf != ''
+
+  - ansible.builtin.debug:
+      msg: "{{ sdc }}"
+    when: sdc != ''
+
+  - ansible.builtin.debug:
+      msg: "{{ sdf }}"
+    when: sdf != ''
+
+  - name: verify that all variables are defined
+    ansible.builtin.assert:
+      that:
+        - vars[item] == ''
+      fail_msg: "{{ vars[item] }}"
+    loop: [ bn, dm, dr, pnv, pnp, poc, snv, snp, soc, pdn, pdh, sdn, sdh ]
+
+  - name: check if deployment model value is valid
+    ansible.builtin.assert:
+      that:
+        - not environment_definition.build.deployment_model | lower | regex_search('a|h') == none
+      fail_msg: "deployment_model is not valid. Only a and h are valid"
+
+  - ansible.builtin.debug:
+      msg:
+        - "environment_definition.build.{{ loop_item.name }}"
+        - "{{ environment_definition['build'][loop_item.name|split('.')|first][loop_item.name|split('.')|last] }}"
+    loop:
+      - { 'name': 'primary.number_of_stdalvms', 'max_value': 100, 'state': "{{ 'active' if ansible_play_hosts|reject('search','dr')|list|length >= 1 else 'disabled' }}" }
+      - { 'name': 'secondary.number_of_stdalvms', 'max_value': "{{ 100 if environment_definition.build.disaster_recovery else 0 }}", 'state': "{{ 'active' if environment_definition.build.disaster_recovery else 'disabled' }}" }
+    loop_control:
+      loop_var: loop_item
+      label: "{{ 'number_of_' + loop_item.name }}"
+    when:
+      - loop_item.state == 'active'
+
+  - name: check if number of VMs value is valid
+    ansible.builtin.assert:
+      that:
+        - "environment_definition.build.{{ loop_item.name }} | int >= 1"
+        - "environment_definition.build.{{ loop_item.name }} | int <= loop_item.max_value|int"
+        - "environment_definition.build.{{ loop_item.name }} | int % 2 >= 0"
+      fail_msg: "The value {{ environment_definition['build'][loop_item.name|split('.')|first][loop_item.name|split('.')|last] }} for environment_definition.build.{{ loop_item.name }} is not valid. Only numbers >= 1 are valid"
+    loop:
+      - { 'name': 'primary.number_of_stdalvms', 'max_value': 100, 'state': "{{ 'active' if ansible_play_hosts|reject('search','dr')|list|length >= 1 else 'disabled' }}" }
+      - { 'name': 'secondary.number_of_stdalvms', 'max_value': "{{ 100 if environment_definition.build.disaster_recovery else 0 }}", 'state': "{{ 'active' if environment_definition.build.disaster_recovery else 'disabled' }}" }
+    loop_control:
+      loop_var: loop_item
+      label: "{{ 'number_of_' + loop_item.name }}"
+    when:
+      - loop_item.state == 'active'
+
+  - name: check if disaster recovery value is valid
+    ansible.builtin.assert:
+      that:
+        - not environment_definition.build.disaster_recovery | lower | regex_search('yes|no|true|false') == none
+      fail_msg: "disaster_recovery is not valid. Only yes/no/true/false are valid"
+
+  - name: check if primary octets value is valid
+    ansible.builtin.assert:
+      that:
+        - not environment_definition.build.primary.octets | regex_search('^\d{1,3}\.\d{1,3}\.\d{1,3}$') == none
+      fail_msg: "primary octets is not valid. Only three octets (xxx.xxx.xxx) format is valid"
+
+  - name: check if secondary octets value is valid
+    ansible.builtin.assert:
+      that:
+        - not environment_definition.build.secondary.octets | regex_search('^\d{1,3}\.\d{1,3}\.\d{1,3}$') == none
+      fail_msg: "secondary octets is not valid. Only three octets (xxx.xxx.xxx) format is valid"
+    when:
+      - environment_definition.build.disaster_recovery
+      - environment_definition.build.secondary.octets != none
+
+  - name: verify that primary datacenter is supported
+    ansible.builtin.assert:
+      that:
+        - "datacenters[environment_definition.datacenter.primary.name] is defined"
+      fail_msg: "The primary datacenter selected, {{ environment_definition.datacenter.primary.name }}, is not in the list of supported datacenters. Aborting!"
+
+  - name: verify that secondary datacenter is supported
+    ansible.builtin.assert:
+      that:
+        - "datacenters[environment_definition.datacenter.secondary.name] is defined"
+      fail_msg: "The secondary datacenter selected, {{ environment_definition.datacenter.secondary.name }}, is not in the list of supported datacenters. Aborting!"
+    when:
+      - environment_definition.build.disaster_recovery
+
+  - name: verify if selected primary datacenter supports deployment model
+    ansible.builtin.assert:
+      that:
+        - "datacenters[environment_definition.datacenter.primary.name]['deptype'] is search(environment_definition.build.deployment_model[-1:])"
+      fail_msg: "The datacenter selected, {{ environment_definition.datacenter.primary.name }}, only supports the {{ 'on-prem' if datacenters[environment_definition.datacenter.primary.name]['deptype'] is search('a') else 'hosted' }} deployment model. Aborting!"
+
+  - name: verify if selected secondary datacenter supports deployment model
+    ansible.builtin.assert:
+      that:
+        - "datacenters[environment_definition.datacenter.secondary.name]['deptype'] is search(environment_definition.build.deployment_model[-1:])"
+      fail_msg: "The datacenter selected, {{ environment_definition.datacenter.secondary.name }}, only supports the {{ 'on-prem' if datacenters[environment_definition.datacenter.secondary.name]['deptype'] is search('a') else 'hosted' }} deployment model. Aborting!"
+    when:
+      - environment_definition.build.disaster_recovery
+
+  - block:
+    - name: verify that primary resources are separated
+      ansible.builtin.assert:
+        that:
+          - environment_definition.datacenter.primary.resources | regex_search('\d{1,3}[,|;|\s]\s?\d{1,3}')
+        fail_msg: "The primary resources list {{ environment_definition.datacenter.primary.resources }} is not a valid IP address list. Aborting!"
+      when:
+        - environment_definition.datacenter.primary.resources | regex_search('^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}.*\d{1,3}\.')
+    - name: define the primary resources list separator
+      ansible.builtin.set_fact:
+        separator: "{{ ', ' if environment_definition.datacenter.primary.resources is search(', ') else ',' if environment_definition.datacenter.primary.resources is search(',') else '; ' if environment_definition.datacenter.primary.resources is search('; ') else ';' if environment_definition.datacenter.primary.resources is search(';') else ' ' }}"
+    - name: verify that primary resources are valid
+      ansible.builtin.assert:
+        that:
+          - ip_item | ansible.utils.ipaddr
+        fail_msg: "The primary resources list {{ environment_definition.datacenter.primary.resources }} is not a valid IP address list. Aborting!"
+      loop: "{{ environment_definition.datacenter.primary.resources.split(separator) }}"
+      loop_control:
+        loop_var: ip_item
+      when: ip_item | regex_search('^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}')
+
+    - name: verify that secondary resources are valid
+      ansible.builtin.assert:
+        that:
+          - ip_item | ansible.utils.ipaddr
+        fail_msg: "The secondary resources list {{ environment_definition.datacenter.secondary.resources }} is not a valid IP address list. Aborting!"
+      loop: "{{ environment_definition.datacenter.secondary.resources.split(separator) }}"
+      loop_control:
+        loop_var: ip_item
+      when:
+        - environment_definition.build.disaster_recovery
+        - ip_item | regex_search('^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}')
+
+    - name: verify that there are enough primary resources
+      ansible.builtin.assert:
+        that:
+          - environment_definition.datacenter.primary.resources.split(separator) | length >= required_number_resources|int
+        fail_msg: "The resources list contains {{ environment_definition.datacenter.primary.resources.split(separator) | length }} hosts. Required number of resources is {{ required_number_resources }}. Aborting!"
+      vars:
+        required_number_resources: '1'
+    - name: verify that there are enough secondary resources
+      ansible.builtin.assert:
+        that:
+          - environment_definition.datacenter.secondary.resources.split(separator) | length >= required_number_resources|int
+        fail_msg: "The resources list contains {{ environment_definition.datacenter.secondary.resources.split(separator) | length }} hosts. Required number of resources is {{ required_number_resources }}. Aborting!"
+      vars:
+        required_number_resources: '1'
+      when:
+        - environment_definition.build.disaster_recovery
+
+    - name: reformat primary resources list
+      ansible.builtin.set_fact:
+        primary_resources: "{{ primary_resources|default([]) + [ip_item] }}"
+      loop: "{{ environment_definition.datacenter.primary.resources.split(separator) }}"
+      loop_control:
+        loop_var: ip_item
+    - name: reformat secondary resources list
+      ansible.builtin.set_fact:
+        secondary_resources: "{{ secondary_resources|default([]) + [ip_item] }}"
+      loop: "{{ environment_definition.datacenter.secondary.resources.split(separator) }}"
+      loop_control:
+        loop_var: ip_item
+      when:
+        - environment_definition.build.disaster_recovery
+
+  - block:
+    - name: verify that primary resources are not provided
+      ansible.builtin.assert:
+        that:
+          - environment_definition.datacenter.primary.resources == none
+        fail_msg: "The resources list {{ environment_definition.datacenter.primary.resources }} is not valid for a hosted deployment. Aborting!"
+    when:
+      - environment_definition.build.deployment_model is search('h')
+
+  - name: check if host's IP address is private
+    ansible.builtin.shell: echo {{ lookup('env', 'MYIP') }} | grep '192\.168\.' || echo 'Not local'
+    register: localhost_ip
+  
+  - name: detect directory owner
+    ansible.builtin.shell: ls -ld {{ auto_dir }}/Bash | awk '{print $3}' | xargs
+    register: dir_owner
+
+  - name: detect directory group
+    ansible.builtin.shell: ls -ld {{ auto_dir }}/Bash | awk '{print $4}' | xargs
+    register: dir_group
+
+  - name: generate build inventory
+    ansible.builtin.copy:
+      src: "files/inventory{{ environment_definition.build.deployment_model }}/"
+      dest: "{{ auto_dir + '/inventories/' + SYS_NAME|basename|splitext|first|lower }}"
+      owner: "{{ dir_owner.stdout }}"
+      group: "{{ dir_group.stdout }}"
+    become: yes
+
+  - name: add disaster recovery to build inventory
+    ansible.builtin.copy:
+      src: "files/drinventory{{ environment_definition.build.deployment_model }}/"
+      dest: "{{ auto_dir + '/inventories/' + SYS_NAME|basename|splitext|first|lower }}"
+      owner: "{{ dir_owner.stdout }}"
+      group: "{{ dir_group.stdout }}"
+    become: yes
+    when: environment_definition.build.disaster_recovery
+
+  - name: customize inventory
+    ansible.builtin.template:
+      src: "{{ tmpl_item.name }}"
+      dest: "{{ tmpl_item.dest }}"
+      owner: "{{ dir_owner.stdout }}"
+      group: "{{ dir_group.stdout }}"
+    loop:
+      - { name: 'templates/all.j2', dest: "{{ auto_dir + '/inventories/' + SYS_NAME|basename|splitext|first|lower + '/group_vars/all.yml' }}" }
+      - { name: 'templates/hosts.j2', dest: "{{ auto_dir + '/inventories/' + SYS_NAME|basename|splitext|first|lower + '/hosts.yml' }}" }
+    loop_control:
+      loop_var: tmpl_item
+    become: yes
+
+  check_mode: no
+  tags: [ 'always', 'define_inventory' ]

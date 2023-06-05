@@ -1,0 +1,81 @@
+---
+# Validate credentials (always run)
+- name: Validate credentials
+  hosts: all
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  gather_facts: no
+
+  roles:
+    - role: check_creds
+
+# Play to determine what to do and to define vm facts(always run)
+- name: Define variables
+  hosts: all
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  gather_facts: no
+
+  roles:
+    - role: todo
+    - role: vm_facts
+
+# Play to perform the infrastructure capacity check
+- name: Pre-deploy preparation
+  hosts: all
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  gather_facts: no
+
+  tasks:
+    - block:
+     - include_role:
+          name: capcheck
+        when: capcheck | default(false) | bool
+        tags: ['capcheck', 'vm_creation']
+      when: deploy | default(false) | bool
+
+# Play to create the VMs
+- name: Deploy VMs
+  hosts: all
+  strategy: free
+  gather_facts: no
+
+  tasks:
+    - block:
+      - include_role:
+          name: vm_fromiso
+        when: create_vms_iso | default(false) | bool
+        tags: vm_creation
+      - include_role:
+          name: vm_hardening
+        when: harden_vms | default(false) | bool
+        tags: vm_hardening
+      when: deploy | default(false) | bool
+
+# Play to configure the VMs
+- name: Configure VMs
+  hosts: all
+  gather_facts: no
+
+  tasks:
+    - block:
+      - include_role:
+          name: vm_configuration_iso
+        when: configure_vms_iso | default(false) | bool
+        tags: vm_configuration
+      when: deploy | default(false) | bool
+
+# Play to delete the VMs
+- name: Rollback VMs
+  hosts: all
+  order: reverse_inventory
+  gather_facts: no
+
+  tasks:
+    - block:
+      - include_role:
+          name: vm_fromiso
+        when: rollback_vms_iso | default(false) | bool
+        tags: vm_creation
+      when: rollback | default(false) | bool
