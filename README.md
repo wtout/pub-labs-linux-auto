@@ -1,11 +1,11 @@
 # README #
 
-This README provides instructions and information to get your Ansible control machine up and running with the automation package to deploy the device simulator.
+This README provides instructions and information to get your Linux utility machine up and running with the automation package to deploy Linux VMs from ISO.
 
 
 ### What is this repository for? ###
 
-This repository contains Ansible playbooks to be used in the full deployment of the device simulator.
+This repository contains Ansible playbooks to be used in the full deployment of Linux VMs from ISO.
 
 
 ### Disclaimer ###
@@ -23,11 +23,11 @@ On a newly installed Linux **CentOS 7.7+** VM that has docker installed and conf
 
 6- Download the Ansible automation package
 
-    $> git clone https://wwwin-github.cisco.com/cms-pae/pae-labs-simulator-auto.git
+    $> git clone https://wwwin-github.cisco.com/cms-pae/pae-labs-linux-auto.git
 
-7- Go to the newly cloned pae-labs-simulator-auto directory
+7- Go to the newly cloned pae-labs-linux-auto directory
 
-    $> cd pae-labs-simulator-auto
+    $> cd pae-labs-linux-auto
 
 ***Note**: you might need to disable the proxy to be able to clone the repository*
 
@@ -59,19 +59,19 @@ The system definition file consists of the following variables:
   - **datacenter.secondary.folder** (_String_): The folder to host the build's secondary VMs
   - **datacenter.secondary.resources** (_String_): Required for on-prem deployments. List of ESXI hosts
 
-To create the system inventory without deploying the system, issue the following command from the automation root directory (pae-labs-simulator-auto):
+To create the system inventory without deploying the system, issue the following command from the automation root directory (pae-labs-linux-auto):
 
     $> sh Bash/play_deploy.sh --envname <system-name> --tags none
 
 
 ### ISO Image ###
 
-The tool automatically creates a symbolic link to the _``Packages``_ directory in the automation directory. The _``Packages``_ directory points to a _``Packages``_ directory under /data, if it exists. If it does not exist, the _``Packages``_ directory will be created under the automation directory. User must ensure that the OS ISO image to be used is available on the Ansible/deployment machine under _``/data/Packages/ISO``_ prior to starting the automated build process.
+The tool automatically creates a symbolic link to the _``Packages``_ directory in the automation directory. The _``Packages``_ directory points to a _``Packages``_ directory under /data, if it exists. If it does not exist, the _``Packages``_ directory will be created under the automation directory. User must ensure that the OS ISO image to be used is available on the Linux utility/deployment machine under _``/data/Packages/ISO``_ prior to starting the automated build process.
 
 
 ### System Deployment ###
 
-1- From the automation root directory (pae-labs-simulator-auto), run one of the bash scripts under the Bash directory depending on what you want to do. 
+1- From the automation root directory (pae-labs-linux-auto), run one of the bash scripts under the Bash directory depending on what you want to do. 
 
     $> sh Bash/<script name> --envname <system-name>
 
@@ -81,7 +81,7 @@ with the _``system-name``_ being the name of the system definition file from "Sy
 
 - ``play_rollback.sh``
 
-  Script output is automatically saved to a log file. The file is saved under _``Logs/<script-name>.<system-name>.log.<time-stamp>``_ on the Ansible control machine
+  Script output is automatically saved to a log file. The file is saved under _``Logs/<script-name>.<system-name>.log.<time-stamp>``_ on the Linux utility machine
 
 ***Note**: Running multiple instances of the same script for a given build simultaneously is prohibited*
 
