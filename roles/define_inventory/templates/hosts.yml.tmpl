@@ -1,8 +1,5 @@
 all:
   children:
-    bastion:
-      hosts:
-        bastion[01:01]:
     vcenter:
       hosts:
         vcenter[01:01]:
@@ -10,4 +7,4 @@ all:
       children:
         stdalvm:
           hosts:
-            stdalvm[01:{{ '%02d' | format(environment_definition.customer.primary.number_of_stdalvms|int) }}]:
+            stdalvm[01:{{ '%02d' | format(environment_definition.build.primary.number_of_stdalvms|int) }}]:

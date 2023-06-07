@@ -2,12 +2,12 @@
 # tasks to deploy VM from ISO
 - block:
   - name: Get VM info
-    vmware_guest_info:
+    community.vmware.vmware_guest_info:
       hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
       username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
       password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
       datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
-      folder: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] + '/vm' + ('/' + fldr_name if fldr_name != '' else '') }}"
+      folder: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] + '/vm' + (('' if fldr_name is regex('^/') else '/') + fldr_name if fldr_name != '' else '') }}"
       name: "{{ vm.name }}"
       validate_certs: no
     check_mode: no
@@ -24,6 +24,7 @@
           device_type: vmxnet3
     when:
       - netconfig.nic1.intname != ''
+      - netconfig.nic1.ipaddress != ''
   - name: define nic2
     ansible.builtin.set_fact:
       nic2:
@@ -34,17 +35,28 @@
           device_type: vmxnet3
     when:
       - netconfig.nic2.intname != ''
+      - netconfig.nic2.ipaddress != ''
   - name: define list of nics
     ansible.builtin.set_fact:
-      nics_list: "{{ nic1 + nic2|default([]) }}"
+      nics_list: "{{ nic1|default([]) + nic2|default([]) }}"
+
+  - name: define ethernet0 pciSlotNumber
+    ansible.builtin.set_fact:
+      advsets:
+        - key: 'ethernet0.pciSlotNumber'
+          value: "{{ (netconfig.nic1.intname if netconfig.nic1.ipaddress != '' else netconfig.nic2.intname)|replace('ens','') }}"
+    when:
+      - netconfig.nic1.ipaddress == '' or netconfig.nic2.ipaddress == ''
+
+  - name: define list of advsets
+    ansible.builtin.set_fact:
+      advsets_list: "{{ advsets|default([]) }}"
 
   - block:
     - include_tasks: task_deploy_iso.yml
     rescue:
-    - include_role:
-        name: vm_creation
-        tasks_from: task_delete_vm.yml
+    - include_tasks: task_delete_vm.yml
     - include_tasks: task_deploy_iso.yml
 
-  delegate_to: "{{ groups['bastion'][0] if (groups['bastion'] | length >= 1 and bastion.address != [] and bastion.address != ['']) else 'localhost' }}"
+  delegate_to: localhost
   tags: vm_creation

@@ -2,33 +2,20 @@
 # tasks file for check_creds
 - block:
   - include_tasks:
-      file: task_validate_bastion_creds.yml
-      apply:
-        vars:
-          bastion_host: "{{ task_item }}"
-    loop: "{{ groups['bastion'] }}"
-    loop_control:
-      loop_var: task_item
-    when:
-      - groups['bastion']|length >= 1
-      - hostvars[task_item]['ansible_host'] != ''
-
-  - include_tasks:
       file: task_validate_vcenter_creds.yml
       apply:
         vars:
           vcenter_host: "{{ task_item }}"
-    loop: "{{ groups['vcenter'] | union(groups['drvcenter']) if customer.disaster_recovery else groups['vcenter'] }}"
+    loop: "{{ groups['vcenter'] | union(groups['drvcenter']) if build.disaster_recovery else groups['vcenter'] }}"
     loop_control:
       loop_var: task_item
     when:
-      - (groups['vcenter'] | union(groups['drvcenter']) if customer.disaster_recovery else groups['vcenter']) | length >= 1
-      - (groups['bastion'] | length >= 1 and bastion.address != [] and bastion.address != [''] and bastion_creds is succeeded) or (bastion.address == [] or bastion.address == [''])
+      - (groups['vcenter'] | union(groups['drvcenter']) if build.disaster_recovery else groups['vcenter']) | length >= 1
       - not abort_play | default(false) | bool
 
   - block:
     - name: Delete credentials
-      file:
+      ansible.builtin.file:
         path: "{{ VFILE }}"
         state: absent
       when:

@@ -1,0 +1,11 @@
+---
+# tasks to set the folder name
+- block:
+  - name: Define folder name
+    ansible.builtin.set_fact:
+      fldr_name: "{{ (('' if hostvars[inventory_hostname]['datacenter']['secondary' if 'dr' in group_names else 'primary']['folder'] is regex('^/') else '/') + hostvars[inventory_hostname]['datacenter']['secondary' if 'dr' in group_names else 'primary']['folder']) if hostvars[inventory_hostname]['datacenter']['secondary' if 'dr' in group_names else 'primary']['folder'] != '' else hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['folder'] + '/' + hostvars[inventory_hostname]['build']['secondary' if 'dr' in group_names else 'primary']['name_prefix'] }}"
+  - ansible.builtin.assert:
+      that: fldr_name is defined
+      success_msg: "{{ 'fldr_name is ' + fldr_name }}"
+      fail_msg: 'fldr_name is not defined'
+  tags: vm_creation

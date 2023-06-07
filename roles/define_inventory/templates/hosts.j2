@@ -1,4 +1,4 @@
 {% include 'templates/hosts.yml.tmpl' %}
-{% if environment_definition.customer.disaster_recovery %}
+{% if environment_definition.build.disaster_recovery %}
 {% include 'templates/drhosts.yml.tmpl' %}
 {% endif %}

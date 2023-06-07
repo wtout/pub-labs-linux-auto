@@ -2,7 +2,7 @@
 # tasks to update iptables on VM
 - block:
   - name: update iptables
-    iptables:
+    ansible.builtin.iptables:
       chain: INPUT
       protocol: udp
       destination_port: "{{ port_item }}"

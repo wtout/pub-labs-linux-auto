@@ -1,10 +1,8 @@
----
-# tasks to check connectivity and credentials for non EM7 hosts
 - name: check connection credentials
   block:
     - name: check VM reachable
       ansible.builtin.command: ping {{ ansible_host }} -c 1
-      register: vcr_vm_reachable
+      register: vh_vm_reachable
       check_mode: no
       delegate_to: localhost
     - name: check original credentials
@@ -12,7 +10,7 @@
         - name: check VM credentials
           ansible.builtin.wait_for_connection:
             timeout: 10
-          register: vcr_vm_creds
+          register: vh_vm_creds
           check_mode: no
       rescue:
         - name: switch to {{ vm_svc_user }} user
@@ -38,18 +36,16 @@
             host: "{{ netconfig.nic1.ipaddress }}"
             search_regex: OpenSSH
             timeout: 10
-          register: vcr_vm_connection
+          register: vh_vm_connection
           check_mode: no
           delegate_to: localhost
         - ansible.builtin.debug:
             msg: "VM hardening is enabled. Nothing to do"
         - name: set flag to not create and configure the VMs
           ansible.builtin.set_fact:
-            crecon: false
+            hardv: false
       rescue:
-        - name: revert user
-          ansible.builtin.set_fact:
-            ansible_user: "{{ credentials.username }}"
-            ansible_ssh_pass: "{{ credentials.password }}"
-          no_log: true
-  tags: vm_creation
+        - name: abort hardening
+          ansible.builtin.fail:
+            msg: 'Unable to connect to the VM. Check the connection details or that the VM is created. Aborting!'
+  tags: vm_hardening

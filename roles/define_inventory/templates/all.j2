@@ -1,12 +1,14 @@
 #jinja2: trim_blocks: False
 {% include 'all.yml.tmpl' %}
-{% if environment_definition.customer.deployment_model is search('a') %}
+{% if environment_definition.build.deployment_model is search('a') %}
 {% include 'templates/alla.yml.tmpl' %}
-{% if environment_definition.customer.disaster_recovery %}
+{% if environment_definition.build.disaster_recovery %}
 {% include 'templates/dralla.yml.tmpl' %}
 {% endif %}
-{% if environment_definition.customer.deployment_model is search('h') %}
+{% endif %}
+{% if environment_definition.build.deployment_model is search('h') %}
 {% include 'templates/allh.yml.tmpl' %}
-{% if environment_definition.customer.disaster_recovery %}
+{% if environment_definition.build.disaster_recovery %}
 {% include 'templates/drallh.yml.tmpl' %}
+{% endif %}
 {% endif %}

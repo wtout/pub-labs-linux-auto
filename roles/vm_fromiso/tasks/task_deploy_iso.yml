@@ -2,13 +2,13 @@
 # tasks to deploy VM from ISO
 - block:
   - name: Deploy VM from ISO
-    vmware_guest:
+    community.vmware.vmware_guest:
       hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
       username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
       password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
       datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
       cluster: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['cluster'] }}"
-      folder: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] + '/vm' + ('/' + fldr_name if fldr_name != '' else '') }}"
+      folder: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] + '/vm' + (('' if fldr_name is regex('^/') else '/') + fldr_name if fldr_name != '' else '') }}"
       guest_id: centos7_64Guest
       name: "{{ vm.name }}"
       state: poweredon
@@ -26,6 +26,7 @@
         boot_firmware: "bios"
         version: 'latest'
       networks: "{{ nics_list }}"
+      advanced_settings: "{{ advsets_list }}"
       cdrom:
         - type: iso
           iso_path: "[{{ iso_datastore }}] {{ iso_path }}/{{ iso_installer }}"
@@ -44,9 +45,9 @@
     retries: 5
     delay: 10
   - name: Wait for port 22 to become open and contain "OpenSSH"
-    wait_for:
+    ansible.builtin.wait_for:
       port: 22
-      host: "{{ netconfig.nic1.ipaddress }}"
+      host: "{{ netconfig.nic1.ipaddress if netconfig.nic1.ipaddress != '' else netconfig.nic2.ipaddress }}"
       search_regex: OpenSSH
       delay: 10
       timeout: 1800
@@ -54,5 +55,5 @@
     when:
       - deploy_iso is succeeded
       - vmguest_info is failed
-  delegate_to: "{{ groups['bastion'][0] if (groups['bastion'] | length >= 1 and bastion.address != [] and bastion.address != ['']) else 'localhost' }}"
+  delegate_to: localhost
   tags: vm_creation

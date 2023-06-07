@@ -13,7 +13,7 @@
       bn: "{{ 'Build name is not defined' if (environment_definition.build.name is not defined or environment_definition.build.name == none) else '' }}"
       dm: "{{ 'Deployment model is not defined' if (environment_definition.build.deployment_model is not defined or environment_definition.build.deployment_model == none) else '' }}"
       dr: "{{ 'Disaster recovery is not defined' if (environment_definition.build.disaster_recovery is not defined or environment_definition.build.disaster_recovery == none) else '' }}"
-      pnv: "{{ 'Primary number of vms is not defined' if (environment_definition.build.primary.number_of_stdalvms is not defined or environment_definition.build.primary.number_of_smlt == none) else '' }}"
+      pnv: "{{ 'Primary number of vms is not defined' if (environment_definition.build.primary.number_of_stdalvms is not defined or environment_definition.build.primary.number_of_stdalvms == none) else '' }}"
       pnp: "{{ 'Primary name_prefix is not defined' if (environment_definition.build.primary.name_prefix is not defined or  environment_definition.build.primary.name_prefix == none) else '' }}"
       poc: "{{ 'Primary octets is not defined' if (environment_definition.build.primary.octets is not defined or environment_definition.build.primary.octets == none) else '' }}"
       snv: "{{ 'Secondary number of vms is not defined' if (environment_definition.build.disaster_recovery and (environment_definition.build.secondary.number_of_stdalvms is not defined or environment_definition.build.secondary.number_of_stdalvms == none)) else '' }}"
@@ -199,6 +199,8 @@
         loop_var: ip_item
       when:
         - environment_definition.build.disaster_recovery
+    when:
+      - environment_definition.build.deployment_model is search('a')
 
   - block:
     - name: verify that primary resources are not provided

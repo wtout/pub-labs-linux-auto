@@ -2,7 +2,7 @@
 # Tasks to create VM pairs
 - block:
   - name: define vm_seq for each host
-    set_fact:
+    ansible.builtin.set_fact:
       vm_seq: "{{ range(0, groups[vm_group]|length, 2)|list }}"
 
   - include_tasks:

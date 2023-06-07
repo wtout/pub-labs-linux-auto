@@ -29,7 +29,7 @@
 
   tasks:
     - block:
-     - include_role:
+      - include_role:
           name: capcheck
         when: capcheck | default(false) | bool
         tags: ['capcheck', 'vm_creation']

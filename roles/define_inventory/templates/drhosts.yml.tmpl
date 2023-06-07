@@ -6,4 +6,4 @@
       children:
         drstdalvm:
           hosts:
-            drstdalvm[01:{{ '%02d' | format(environment_definition.customer.secondary.number_of_stdalvms|int) }}]:
+            drstdalvm[01:{{ '%02d' | format(environment_definition.build.secondary.number_of_stdalvms|int) }}]:

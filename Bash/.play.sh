@@ -572,12 +572,7 @@ function run_playbook() {
 		then
 			EVARGS="{SVCFILE: '${SVCVAULT}', $(echo "${0}" | sed -e 's/.*play_\(.*\)\.sh/\1/'): true}"
 		else
-			if  [[ "$(echo "${0}" | grep 'check')" == "" ]]
-			then
-				EVARGS="{SVCFILE: '${SVCVAULT}', AVMLIST: '${ALIST}', $(echo "${0}" | sed -e 's/.*play_\(.*\)\.sh/\1/'): true}"
-			else
-				EVARGS="{SVCFILE: '${SVCVAULT}', $(echo "${0}" | sed -e 's/.*play_\(.*\)\.sh/\1/'): true}"
-			fi
+			EVARGS="{SVCFILE: '${SVCVAULT}', $(echo "${0}" | sed -e 's/.*play_\(.*\)\.sh/\1/'): true}"
 		fi
 		if [[ -z ${MYINVOKER+x} ]]
 		then
@@ -627,7 +622,6 @@ NEW_ARGS=$(check_hosts_limit "${@}")
 set -- && set -- "${@}" "${NEW_ARGS}"
 ORIG_ARGS="${@}"
 ENAME=$(get_envname "${ORIG_ARGS}")
-ALIST=$(get_avmlist "${ORIG_ARGS}")
 check_repeat_job && echo -e "\nRunning multiple instances of ${BOLD}$(basename "${0}")${NORMAL} is prohibited. Aborting!\n\n" && exit 1
 INVENTORY_PATH="inventories/${ENAME}"
 CRVAULT="${INVENTORY_PATH}/group_vars/vault.yml"
@@ -636,7 +630,6 @@ SYS_ALL="${INVENTORY_PATH}/group_vars/all.yml"
 SVCVAULT="vars/.svc_acct_creds_${ENAME}.yml"
 CONTAINERNAME="$(whoami | cut -d '@' -f1)_ansible_${ANSIBLE_VERSION}_${ENAME}"
 NEW_ARGS=$(clean_arguments '--envname' "${ENAME}" "${@}")
-NEW_ARGS=$(clean_arguments '--avmlist' "${ALIST}" "${NEW_ARGS}")
 set -- && set -- "${@}" "${NEW_ARGS}"
 [[ $- =~ x ]] && debug=1 && [[ "${SECON}" == "true" ]] && set +x
 PROXY_ADDRESS=$(get_proxy) || PA=${?}
