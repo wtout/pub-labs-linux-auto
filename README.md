@@ -114,9 +114,9 @@ To skip specific role(s), add "_--skip-tags 'role1,role2,etc...'_" as argument t
 
 To limit the processing to specific host(s) or group(s) or a combination of both, add "_--limit 'group1,host1,etc...'_" as argument to the script.
 
-**_Example3_**: to execute role1 and role2 on the smlt group and drsmlt01, run the script as follows:
+**_Example3_**: to execute role1 and role2 on the stdalvm group and drstdalvm01, run the script as follows:
 
-    $> sh Bash/<script-name> --envname <system-name> --tags 'role1,role2' --limit 'smlt,drsmlt01'
+    $> sh Bash/<script-name> --envname <system-name> --tags 'role1,role2' --limit 'stdalvm,drstdalvm01'
 
 ***Note**: group(s) or host(s) names specified with --limit must match the names defined in the hosts.yml file*
 
