@@ -99,6 +99,7 @@ The list of roles used in the playbooks:
   - **capcheck**: performs a capacity check of the infrastructure
   - **vm_fromiso**: deploys the stack's VMs from ISO
   - **vm_hardening**: enables hardening on the VMS created from ISO
+  - **docker**: installs and configures docker on the VMS created from ISO
 
 To execute specific role(s), add "_--tags 'role1,role2,etc...'_" as argument to the script.
 
