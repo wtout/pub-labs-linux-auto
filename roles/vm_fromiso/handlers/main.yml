@@ -66,7 +66,7 @@
 
 - name: create disk1 filesystem
   ansible.builtin.filesystem:
-    fstype: ext4
+    fstype: xfs
     device: /dev/sdb1
   become: "{{ true if ansible_user != 'root' else false }}"
   notify: set disk1 mount points
@@ -76,7 +76,7 @@
   ansible.builtin.mount:
     name: "{{ vm.disk1_mount }}"
     src: /dev/sdb1
-    fstype: ext4
+    fstype: xfs
     opts: defaults
     state: mounted
     dump: '1'
@@ -104,7 +104,7 @@
 
 - name: create disk2 filesystem
   ansible.builtin.filesystem:
-    fstype: ext4
+    fstype: xfs
     device: /dev/sdc1
   become: "{{ true if ansible_user != 'root' else false }}"
   notify: set disk2 mount points
@@ -114,7 +114,7 @@
   ansible.builtin.mount:
     name: "{{ vm.disk2_mount }}"
     src: /dev/sdc1
-    fstype: ext4
+    fstype: xfs
     opts: defaults
     state: mounted
     dump: '1'
@@ -142,7 +142,7 @@
 
 - name: create disk3 filesystem
   ansible.builtin.filesystem:
-    fstype: ext4
+    fstype: xfs
     device: /dev/sdd1
   become: "{{ true if ansible_user != 'root' else false }}"
   notify: set disk3 mount points
@@ -152,7 +152,7 @@
   ansible.builtin.mount:
     name: "{{ vm.disk3_mount }}"
     src: /dev/sdd1
-    fstype: ext4
+    fstype: xfs
     opts: defaults
     state: mounted
     dump: '1'
