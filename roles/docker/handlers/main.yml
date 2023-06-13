@@ -1,0 +1,50 @@
+---
+# handlers file for roles/docker
+- name: create docker group
+  ansible.builtin.group:
+    name: docker
+    state: present
+  become: "{{ true if ansible_user != 'root' else false }}"
+  tags: [ 'never', 'docker' ]
+
+- name: add user to docker group
+  ansible.builtin.user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: yes
+  become: "{{ true if ansible_user != 'root' else false }}"
+  tags: [ 'never', 'docker' ]
+
+- name: create docker.service.d directory if it does not exist
+  ansible.builtin.file:
+    path: '/etc/systemd/system/docker.service.d'
+    state: directory
+  become: "{{ true if ansible_user != 'root' else false }}"
+  listen: create docker service directory
+  tags: [ 'never', 'docker' ]
+
+- name: add proxy to docker
+  ansible.builtin.copy:
+    content: "[service]\nEnvironment='HTTP_PROXY={{ lookup('env', 'MYPROXY') }}'\nEnvironment='NO_PROXY=localhost,127.0.0.1,.cisco.com'"
+    dest: /etc/systemd/system/docker.service.d/http-proxy.conf
+    force: yes
+  become: "{{ true if ansible_user != 'root' else false }}"
+  when: lookup('env', 'MYPROXY') != ''
+  tags: [ 'never', 'docker' ]
+
+- name: Start and enable docker
+  ansible.builtin.systemd:
+    name: docker
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  become: "{{ true if ansible_user != 'root' else false }}"
+  listen: start docker
+  tags: [ 'never', 'docker' ]
+
+- name: reboot the node
+  ansible.builtin.reboot:
+    post_reboot_delay: 10
+    reboot_timeout: 60
+  become: "{{ true if ansible_user != 'root' else false }}"
+  tags: [ 'never', 'docker' ]

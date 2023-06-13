@@ -1,0 +1,15 @@
+---
+# Tasks to install Docker
+- name: Install Docker
+  ansible.builtin.yum:
+    name: 'docker'
+    state: installed
+  become: true
+  notify:
+    - create docker group
+    - add user to docker group
+    - create docker service directory
+    - add proxy to docker
+    - start docker
+    - reboot the node
+  tags: [ 'never', 'docker' ]

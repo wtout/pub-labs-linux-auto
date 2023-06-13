@@ -29,6 +29,10 @@ drvm_vars:
     disk2: "{{ environment_definition.drvm_setting.stdalvm.disk2 if (environment_definition.drvm_setting.stdalvm.disk2 is defined and environment_definition.drvm_setting.stdalvm.disk2 != none) else '0' }}"
     disk3: "{{ environment_definition.drvm_setting.stdalvm.disk3 if (environment_definition.drvm_setting.stdalvm.disk3 is defined and environment_definition.drvm_setting.stdalvm.disk3 != none) else '0' }}"
 
+    disk1_mount: "{{ (environment_definition.drvm_setting.stdalvm.disk1_mount if (environment_definition.drvm_setting.stdalvm.disk1_mount is defined and environment_definition.drvm_setting.stdalvm.disk1_mount != none) else '/opt') if environment_definition.drvm_setting.stdalvm.disk1 is defined and environment_definition.drvm_setting.stdalvm.disk1 != '0' else '' }}"
+    disk2_mount: "{{ (environment_definition.drvm_setting.stdalvm.disk2_mount if (environment_definition.drvm_setting.stdalvm.disk2_mount is defined and environment_definition.drvm_setting.stdalvm.disk2_mount != none) else '/data01') if environment_definition.drvm_setting.stdalvm.disk2 is defined and environment_definition.drvm_setting.stdalvm.disk2 != '0' else '' }}"
+    disk3_mount: "{{ (environment_definition.drvm_setting.stdalvm.disk3_mount if (environment_definition.drvm_setting.stdalvm.disk3_mount is defined and environment_definition.drvm_setting.stdalvm.disk3_mount != none) else '/data02') if environment_definition.drvm_setting.stdalvm.disk3 is defined and environment_definition.drvm_setting.stdalvm.disk3 != '0' else '' }}"
+
     disk_provisioning: "{{ environment_definition.drvm_setting.stdalvm.disk_provisioning if (environment_definition.drvm_setting.stdalvm.disk_provisioning is defined and environment_definition.drvm_setting.stdalvm.disk_provisioning != none) else '' }}"
 
     vmname: "{{ environment_definition.drvm_setting.stdalvm.vmname if (environment_definition.drvm_setting.stdalvm.vmname is defined and environment_definition.drvm_setting.stdalvm.vmname != none) else '' }}"

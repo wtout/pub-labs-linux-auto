@@ -69,12 +69,12 @@
     fstype: ext4
     device: /dev/sdb1
   become: "{{ true if ansible_user != 'root' else false }}"
-  notify: set opt mount points
+  notify: set disk1 mount points
   tags: vm_creation
 
-- name: set opt mount points
+- name: set disk1 mount points
   ansible.builtin.mount:
-    name: /opt
+    name: "{{ vm.disk1_mount }}"
     src: /dev/sdb1
     fstype: ext4
     opts: defaults
@@ -82,12 +82,12 @@
     dump: '1'
     passno: '2'
   become: "{{ true if ansible_user != 'root' else false }}"
-  notify: set permissions and ownership of /opt
+  notify: set permissions and ownership of disk1
   tags: vm_creation
 
-- name: set permissions and ownership of /opt
+- name: set permissions and ownership of disk1
   ansible.builtin.file:
-    path: /opt
+    path: "{{ vm.disk1_mount }}"
     state: directory
     mode: 0755
     owner: root
@@ -107,12 +107,12 @@
     fstype: ext4
     device: /dev/sdc1
   become: "{{ true if ansible_user != 'root' else false }}"
-  notify: set data01 mount points
+  notify: set disk2 mount points
   tags: vm_creation
 
-- name: set data01 mount points
+- name: set disk2 mount points
   ansible.builtin.mount:
-    name: /data01
+    name: "{{ vm.disk2_mount }}"
     src: /dev/sdc1
     fstype: ext4
     opts: defaults
@@ -120,12 +120,12 @@
     dump: '1'
     passno: '2'
   become: "{{ true if ansible_user != 'root' else false }}"
-  notify: set permissions and ownership of /data01
+  notify: set permissions and ownership of disk2
   tags: vm_creation
 
-- name: set permissions and ownership of /data01
+- name: set permissions and ownership of disk2
   ansible.builtin.file:
-    path: /data01
+    path: "{{ vm.disk2_mount }}"
     state: directory
     mode: 0755
     owner: root
@@ -145,12 +145,12 @@
     fstype: ext4
     device: /dev/sdd1
   become: "{{ true if ansible_user != 'root' else false }}"
-  notify: set data02 mount points
+  notify: set disk3 mount points
   tags: vm_creation
 
-- name: set data02 mount points
+- name: set disk3 mount points
   ansible.builtin.mount:
-    name: /data02
+    name: "{{ vm.disk3_mount }}"
     src: /dev/sdd1
     fstype: ext4
     opts: defaults
@@ -158,12 +158,12 @@
     dump: '1'
     passno: '2'
   become: "{{ true if ansible_user != 'root' else false }}"
-  notify: set permissions and ownership of /data02
+  notify: set permissions and ownership of disk3
   tags: vm_creation
 
-- name: set permissions and ownership of /data02
+- name: set permissions and ownership of disk3
   ansible.builtin.file:
-    path: /data02
+    path: "{{ vm.disk3_mount }}"
     state: directory
     mode: 0755
     owner: root
