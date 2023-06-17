@@ -41,7 +41,7 @@ Create your own system definition file under the _``Definitions``_ directory to 
 The system definition file consists of the following variables:
 
   - **build.name** (_String_): Build Name. Required
-  - **build.version.centos_iso** (_String_): CentOS ISO file name
+  - **build.version.os_iso** (_String_): OS ISO file name
   - **build.deployment_model** (_String_): Required. Valid values are: **a**, **h**, where **a** represents “**a**ppliance” and **h** represents “**h**osted”
   - **build.disaster_recovery** (_Boolean_ **yes**/**no**): Required. Indicates whether or not to build a geo-redundant stack
   - **build.primary.number_of_stdalvms** (Integer): Required. Number of  VMs in primary site. Valid values are numbers in [0-100]
@@ -66,7 +66,9 @@ To create the system inventory without deploying the system, issue the following
 
 ### ISO Image ###
 
-The tool automatically creates a symbolic link to the _``Packages``_ directory in the automation directory. The _``Packages``_ directory points to a _``Packages``_ directory under /data, if it exists. If it does not exist, the _``Packages``_ directory will be created under the automation directory. User must ensure that the OS ISO image to be used is available on the Linux utility/deployment machine under _``/data/Packages/ISO``_ prior to starting the automated build process.
+The tool automatically creates a symbolic link to the _``/data/Packages``_ directory in the automation directory. The _``Packages``_ link points to a _``Packages``_ directory under /data, if it exists. If it does not exist, the automation will stop with an error message. The user must ensure that the OS ISO image to be used is available on the Linux utility/deployment machine under _``/data/Packages/ISO``_ prior to starting the automated build process.
+
+If the _``/data/Packages``_ directory does not exist, the user must create a _``Packages/ISO``_ directory in the automation directory and copy the ISO image to it prior to starting the automated build process.
 
 
 ### System Deployment ###
