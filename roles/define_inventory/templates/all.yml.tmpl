@@ -14,8 +14,8 @@ build:
 
   version:
 
-    # CentOS ISO (string)
-    centos_iso: '{{ environment_definition.build.version.centos_iso if environment_definition.build.version.centos_iso != none else 'CentOS-7-x86_64-Everything-2009.iso' }}'
+    # OS ISO (string)
+    os_iso: '{{ environment_definition.build.version.os_iso if environment_definition.build.version.os_iso != none else 'CentOS-7-x86_64-Everything-2009.iso' }}'
 
   primary:
 

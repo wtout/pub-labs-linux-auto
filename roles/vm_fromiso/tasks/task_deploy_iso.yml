@@ -9,7 +9,7 @@
       datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
       cluster: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['cluster'] }}"
       folder: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] + '/vm' + (('' if fldr_name is regex('^/') else '/') + fldr_name if fldr_name != '' else '') }}"
-      guest_id: centos7_64Guest
+      guest_id: "{{ ('RHEL' if build.version.os_iso|lower is search('almalinux') else build.version.os_iso|split('-')|first|lower) + (build.version.os_iso|split('-'))[1]|split('.')|first }}_64Guest"
       name: "{{ vm.name }}"
       state: poweredon
       validate_certs: no
