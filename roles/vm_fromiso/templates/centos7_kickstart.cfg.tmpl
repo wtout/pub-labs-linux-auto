@@ -121,9 +121,10 @@ sed -i 's/^\(\w.*\)$/#\1/' /etc/hosts.allow
 echo 'SSHD: 172.0.0.0/255.0.0.0' >> /etc/hosts.allow
 echo 'snmpd: 172.0.0.0/255.0.0.0' >> /etc/hosts.allow
 
-# Add user
-#useradd {{ vm_svc_user }}
-#echo '{{ vm_svc_user }}:{{ vm_svc_pass }}' |chpasswd
+# set the Last password change value on the {{ vm_svc_user }} account created at install time
+chage -d `date +%Y-%m-%d` {{ vm_svc_user }}
+
+# Add user to /etc/sudoers.d
 cat << xxEOFxx >> /etc/sudoers.d/{{ vm_svc_user }}
 Host_Alias  {{ vm_svc_user | upper }}_SUDO_HOSTS = ALL
 Runas_Alias {{ vm_svc_user | upper }}_SUDO_RUNAS = ALL

@@ -1,4 +1,4 @@
 ### What is this folder for? ###
 
-This folder is used to store the customer environment definitions
+This folder is used to store the build environment definitions
 

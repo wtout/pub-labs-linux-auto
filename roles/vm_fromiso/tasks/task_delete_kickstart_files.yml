@@ -18,6 +18,7 @@
     - name: check created VM reachable
       ansible.builtin.command: ping {{ netconfig.nic1.ipaddress if netconfig.nic1.gateway != '' else netconfig.nic2.ipaddress }} -c 1
       register: vcr_vm_reachable2
+      become: yes
       ignore_errors: true
       check_mode: no
       until: vcr_vm_reachable2 is succeeded

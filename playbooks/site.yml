@@ -31,9 +31,9 @@
     - block:
       - include_role:
           name: capcheck
-        when: capcheck | default(false) | bool
+        when: capcheck|default(false)|bool
         tags: ['capcheck', 'vm_creation']
-      when: deploy | default(false) | bool
+      when: deploy|default(false)|bool
 
 # Play to create the VMs
 - name: Deploy VMs
@@ -45,13 +45,13 @@
     - block:
       - include_role:
           name: vm_fromiso
-        when: create_vms_iso | default(false) | bool
+        when: create_vms_iso|default(false)|bool
         tags: vm_creation
       - include_role:
           name: vm_hardening
-        when: harden_vms | default(false) | bool
+        when: harden_vms|default(false)|bool
         tags: vm_hardening
-      when: deploy | default(false) | bool
+      when: deploy|default(false)|bool
 
 # Play to configure the VMs
 - name: Configure VMs
@@ -64,7 +64,7 @@
           name: docker
         when: install_docker | default(false) | bool
         tags: [ 'never', 'docker' ]
-      when: deploy | default(false) | bool
+      when: deploy|default(false)|bool
 
 # Play to delete the VMs
 - name: Rollback VMs
@@ -76,6 +76,6 @@
     - block:
       - include_role:
           name: vm_fromiso
-        when: rollback_vms_iso | default(false) | bool
+        when: rollback_vms_iso|default(false)|bool
         tags: vm_creation
-      when: rollback | default(false) | bool
+      when: rollback|default(false)|bool

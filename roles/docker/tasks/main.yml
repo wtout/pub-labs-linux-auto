@@ -37,7 +37,6 @@
       that:
         - creds_status | default('') is not search('invalid')
       fail_msg: "{{ creds_status | default('') }}"
-
   - include_tasks: task_install_docker.yml
   when: install_docker | default(false) | bool
   tags: [ 'never', 'docker' ]

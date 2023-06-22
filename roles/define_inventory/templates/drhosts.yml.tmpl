@@ -4,6 +4,6 @@
         drvcenter[01:01]:
     dr:
       children:
-        drstdalvm:
+        drlnxvm:
           hosts:
-            drstdalvm[01:{{ '%02d' | format(environment_definition.build.secondary.number_of_stdalvms|int) }}]:
+            drlnxvm[01:{{ '%02d' | format(environment_definition.build.secondary.number_of_lnxvm|int) }}]:

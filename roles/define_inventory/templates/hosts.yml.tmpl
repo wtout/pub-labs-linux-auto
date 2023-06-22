@@ -5,6 +5,6 @@ all:
         vcenter[01:01]:
     stack:
       children:
-        stdalvm:
+        lnxvm:
           hosts:
-            stdalvm[01:{{ '%02d' | format(environment_definition.build.primary.number_of_stdalvms|int) }}]:
+            lnxvm[01:{{ '%02d' | format(environment_definition.build.primary.number_of_lnxvm|int) }}]:

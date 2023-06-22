@@ -71,9 +71,10 @@ skipx
 # Reboot after installation
 reboot
 
-%packages --excludedocs
+%packages
 @base
 @core
+@container-management
 kexec-tools
 open-vm-tools
 chrony
@@ -139,6 +140,9 @@ firewall-offline-cmd --remove-service=ssh
 firewall-offline-cmd --new-zone=SSHZONE
 firewall-offline-cmd --zone=SSHZONE --add-source=172.0.0.0/255.0.0.0
 firewall-offline-cmd --zone=SSHZONE --add-service=ssh
+
+# set the Last password change value on the {{ vm_svc_user }} account created at install time
+chage -d `date +%Y-%m-%d` {{ vm_svc_user }}
 
 # Add user to /etc/sudoers.d
 cat << xxEOFxx >> /etc/sudoers.d/{{ vm_svc_user }}

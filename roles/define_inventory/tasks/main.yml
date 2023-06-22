@@ -13,13 +13,13 @@
       bn: "{{ 'Build name is not defined' if (environment_definition.build.name is not defined or environment_definition.build.name == none) else '' }}"
       dm: "{{ 'Deployment model is not defined' if (environment_definition.build.deployment_model is not defined or environment_definition.build.deployment_model == none) else '' }}"
       dr: "{{ 'Disaster recovery is not defined' if (environment_definition.build.disaster_recovery is not defined or environment_definition.build.disaster_recovery == none) else '' }}"
-      pnv: "{{ 'Primary number of vms is not defined' if (environment_definition.build.primary.number_of_stdalvms is not defined or environment_definition.build.primary.number_of_stdalvms == none) else '' }}"
+      pnv: "{{ 'Primary number of vms is not defined' if (environment_definition.build.primary.number_of_lnxvm is not defined or environment_definition.build.primary.number_of_lnxvm == none) else '' }}"
       pnp: "{{ 'Primary name_prefix is not defined' if (environment_definition.build.primary.name_prefix is not defined or  environment_definition.build.primary.name_prefix == none) else '' }}"
       poc: "{{ 'Primary octets is not defined' if (environment_definition.build.primary.octets is not defined or environment_definition.build.primary.octets == none) else '' }}"
-      snv: "{{ 'Secondary number of vms is not defined' if (environment_definition.build.disaster_recovery and (environment_definition.build.secondary.number_of_stdalvms is not defined or environment_definition.build.secondary.number_of_stdalvms == none)) else '' }}"
+      snv: "{{ 'Secondary number of vms is not defined' if (environment_definition.build.disaster_recovery and (environment_definition.build.secondary.number_of_lnxvm is not defined or environment_definition.build.secondary.number_of_lnxvm == none)) else '' }}"
       snp: "{{ 'Secondary name_prefix is not defined' if (environment_definition.build.disaster_recovery and (environment_definition.build.secondary.name_prefix is not defined or environment_definition.build.secondary.name_prefix == none)) else '' }}"
       soc: "{{ 'Secondary octets is not defined' if (environment_definition.build.disaster_recovery and (environment_definition.build.secondary.octets is not defined or environment_definition.build.secondary.octets == none)) else '' }}"
-      pdn: "{{ 'Datacenter name is not defined' if (environment_definition.datacenter.primary.name is not defined or environment_definition.datacenter.primary.name == none) else '' }}"
+      pdn: "{{ 'Primary Datacenter name is not defined' if (environment_definition.datacenter.primary.name is not defined or environment_definition.datacenter.primary.name == none) else '' }}"
       pdh: "{{ 'Primary Datacenter resources is not defined' if (environment_definition.build.deployment_model != none and environment_definition.build.deployment_model is search('a') and environment_definition.build.deployment_model is not search('h') and (environment_definition.datacenter.primary.resources is not defined or environment_definition.datacenter.primary.resources == none)) else '' }}"
       pdc: "{{ 'Primary Datacenter cluster is not defined. Will use esxi hosts IPs to define the primary cluster name' if (environment_definition.datacenter.primary.cluster == none and environment_definition.build.deployment_model != none and environment_definition.build.deployment_model is search('a') and environment_definition.build.deployment_model is not search('h')) else '' }}"
       pdf: "{{ 'Primary Datacenter folder is not defined. Will use default folder instead' if (environment_definition.datacenter.primary.folder == none and environment_definition.build.deployment_model != none and environment_definition.build.deployment_model is search('h') and environment_definition.build.deployment_model is not search('a')) else '' }}"
@@ -62,8 +62,8 @@
         - "environment_definition.build.{{ loop_item.name }}"
         - "{{ environment_definition['build'][loop_item.name|split('.')|first][loop_item.name|split('.')|last] }}"
     loop:
-      - { 'name': 'primary.number_of_stdalvms', 'max_value': 100, 'state': "{{ 'active' if ansible_play_hosts|reject('search','dr')|list|length >= 1 else 'disabled' }}" }
-      - { 'name': 'secondary.number_of_stdalvms', 'max_value': "{{ 100 if environment_definition.build.disaster_recovery else 0 }}", 'state': "{{ 'active' if environment_definition.build.disaster_recovery else 'disabled' }}" }
+      - { 'name': 'primary.number_of_lnxvm', 'max_value': 100, 'state': "{{ 'active' if ansible_play_hosts|reject('search','dr')|list|length >= 1 else 'disabled' }}" }
+      - { 'name': 'secondary.number_of_lnxvm', 'max_value': "{{ 100 if environment_definition.build.disaster_recovery else 0 }}", 'state': "{{ 'active' if environment_definition.build.disaster_recovery else 'disabled' }}" }
     loop_control:
       loop_var: loop_item
       label: "{{ 'number_of_' + loop_item.name }}"
@@ -78,8 +78,8 @@
         - "environment_definition.build.{{ loop_item.name }} | int % 2 >= 0"
       fail_msg: "The value {{ environment_definition['build'][loop_item.name|split('.')|first][loop_item.name|split('.')|last] }} for environment_definition.build.{{ loop_item.name }} is not valid. Only numbers >= 1 are valid"
     loop:
-      - { 'name': 'primary.number_of_stdalvms', 'max_value': 100, 'state': "{{ 'active' if ansible_play_hosts|reject('search','dr')|list|length >= 1 else 'disabled' }}" }
-      - { 'name': 'secondary.number_of_stdalvms', 'max_value': "{{ 100 if environment_definition.build.disaster_recovery else 0 }}", 'state': "{{ 'active' if environment_definition.build.disaster_recovery else 'disabled' }}" }
+      - { 'name': 'primary.number_of_lnxvm', 'max_value': 100, 'state': "{{ 'active' if ansible_play_hosts|reject('search','dr')|list|length >= 1 else 'disabled' }}" }
+      - { 'name': 'secondary.number_of_lnxvm', 'max_value': "{{ 100 if environment_definition.build.disaster_recovery else 0 }}", 'state': "{{ 'active' if environment_definition.build.disaster_recovery else 'disabled' }}" }
     loop_control:
       loop_var: loop_item
       label: "{{ 'number_of_' + loop_item.name }}"

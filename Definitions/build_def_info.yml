@@ -7,8 +7,8 @@ build:
 
   version:
 
-    # CentOS ISO (string)
-    centos_iso: 
+    # OS ISO (string)
+    os_iso: 
 
   # Deployment model (string a/h/)
   deployment_model: a
@@ -18,8 +18,8 @@ build:
 
   primary:
 
-  # Number of primary standalone VMs (integer)
-    number_of_stdalvms: 3
+  # Number of primary VMs (integer)
+    number_of_lnxvm: 3
 
   # Primary site name prefix (string)
     name_prefix: rtp5daautop
@@ -29,8 +29,8 @@ build:
 
   secondary:
 
-  # Number of secondary standalone VMs (integer)
-    number_of_stdalvms: 2
+  # Number of secondary VMs (integer)
+    number_of_lnxvm: 2
 
   # Secondary site name prefix (string)
     name_prefix: drrtp5daautop
@@ -81,7 +81,7 @@ datacenter:
 
 
 vm_setting:
-  stdalvm:
+  lnxvm:
     cpu: 2
     memory: 4
     disk0: 40
@@ -95,7 +95,7 @@ vm_setting:
       intname: 'ens160'
 
 drvm_setting:
-  stdalvm:
+  lnxvm:
     cpu: 2
     memory: 4
     disk0: 40

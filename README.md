@@ -44,10 +44,10 @@ The system definition file consists of the following variables:
   - **build.version.os_iso** (_String_): OS ISO file name
   - **build.deployment_model** (_String_): Required. Valid values are: **a**, **h**, where **a** represents “**a**ppliance” and **h** represents “**h**osted”
   - **build.disaster_recovery** (_Boolean_ **yes**/**no**): Required. Indicates whether or not to build a geo-redundant stack
-  - **build.primary.number_of_stdalvms** (Integer): Required. Number of  VMs in primary site. Valid values are numbers in [0-100]
+  - **build.primary.number_of_lnxvm** (Integer): Required. Number of Linux VMs in primary site. Valid values are numbers in [0-100]
   - **build.primary.name_prefix** (_String_): Required. Name prefix for primary VMs
   - **build.primary.octets** (_String_): Required. First three octets for primary VMs
-  - **build.secondary.number_of_stdalvms** (_String_): Required. Number of  VMs in secondary site. Valid values are numbers in [0-100]
+  - **build.secondary.number_of_lnxvm** (_String_): Required. Number of Linux VMs in secondary site. Valid values are numbers in [0-100]
   - **build.secondary.name_prefix** (_String_): Required when disaster_recovery is “yes”. Name prefix for secondary VMs
   - **build.secondary.octets** (_String_): Required when disaster_recovery is “yes”. First three octets for secondary VMs
   - **datacenter.primary.name** (_String_): Required. Primary Datacenter name
@@ -117,9 +117,9 @@ To skip specific role(s), add "_--skip-tags 'role1,role2,etc...'_" as argument t
 
 To limit the processing to specific host(s) or group(s) or a combination of both, add "_--limit 'group1,host1,etc...'_" as argument to the script.
 
-**_Example3_**: to execute role1 and role2 on the stdalvm group and drstdalvm01, run the script as follows:
+**_Example3_**: to execute role1 and role2 on the lnxvm group and drlnxvm01, run the script as follows:
 
-    $> sh Bash/<script-name> --envname <system-name> --tags 'role1,role2' --limit 'stdalvm,drstdalvm01'
+    $> sh Bash/<script-name> --envname <system-name> --tags 'role1,role2' --limit 'lnxvm,drlnxvm01'
 
 ***Note**: group(s) or host(s) names specified with --limit must match the names defined in the hosts.yml file*
 
