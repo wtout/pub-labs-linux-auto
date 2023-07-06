@@ -80,8 +80,9 @@ screen
 %addon com_redhat_kdump --enable --reserve-mb='auto'
 %end
 
-# Add user
-user --name={{ vm_svc_user }} --iscrypted --password={{ vm_svc_pass | password_hash('sha512') }}
+# Add users
+user --name={{ vm_admin_user }} --iscrypted --password={{ vm_admin_pass | password_hash('sha512') }}
+user --name={{ vm_app_user }} --iscrypted --password={{ vm_app_pass | password_hash('sha512') }}
 
 %post
 # Add search domain and interface name
@@ -121,16 +122,29 @@ sed -i 's/^\(\w.*\)$/#\1/' /etc/hosts.allow
 echo 'SSHD: 172.0.0.0/255.0.0.0' >> /etc/hosts.allow
 echo 'snmpd: 172.0.0.0/255.0.0.0' >> /etc/hosts.allow
 
-# set the Last password change value on the {{ vm_svc_user }} account created at install time
-chage -d `date +%Y-%m-%d` {{ vm_svc_user }}
+# set the Last password change value on the {{ vm_admin_user }} account created at install time
+chage -d `date +%Y-%m-%d` {{ vm_admin_user }}
 
-# Add user to /etc/sudoers.d
-cat << xxEOFxx >> /etc/sudoers.d/{{ vm_svc_user }}
-Host_Alias  {{ vm_svc_user | upper }}_SUDO_HOSTS = ALL
-Runas_Alias {{ vm_svc_user | upper }}_SUDO_RUNAS = ALL
-Cmnd_Alias  {{ vm_svc_user | upper }}_SUDO_CMNDS = ALL
-Cmnd_Alias  {{ vm_svc_user | upper }}_SHELLS = /bin/bash, /sbin/nologin, /usr/bin/bash, /usr/sbin/nologin, /bin/csh, /bin/zsh, /bin/tcsh, /bin/ksh, /usr/bin/ksh, /usr/bin/rsh, /bin/chsh, /usr/bin/chsh
-%{{ vm_svc_user }} {{ vm_svc_user | upper }}_SUDO_HOSTS = ({{ vm_svc_user | upper }}_SUDO_RUNAS) NOPASSWD: {{ vm_svc_user | upper }}_SUDO_CMNDS, !{{ vm_svc_user | upper }}_SHELLS
+# require the {{ vm_app_user }} user to change password at first login
+passwd --expire {{ vm_app_user }}
+
+# Add users to /etc/sudoers.d
+cat << xxEOFxx >> /etc/sudoers.d/{{ vm_admin_user }}
+Host_Alias  {{ vm_admin_user | upper }}_SUDO_HOSTS = ALL
+Runas_Alias {{ vm_admin_user | upper }}_SUDO_RUNAS = ALL
+Cmnd_Alias  {{ vm_admin_user | upper }}_SUDO_CMNDS = ALL
+Cmnd_Alias  {{ vm_admin_user | upper }}_SHELLS = /bin/bash, /sbin/nologin, /usr/bin/bash, /usr/sbin/nologin, /bin/csh, /bin/zsh, /bin/tcsh, /bin/ksh, /usr/bin/ksh, /usr/bin/rsh, /bin/chsh, /usr/bin/chsh
+%{{ vm_admin_user }} {{ vm_admin_user | upper }}_SUDO_HOSTS = ({{ vm_admin_user | upper }}_SUDO_RUNAS) {{ vm_admin_user | upper }}_SUDO_CMNDS, !{{ vm_admin_user | upper }}_SHELLS
+xxEOFxx
+cat << xxEOFxx >> /etc/sudoers.d/{{ vm_app_user }}
+Host_Alias  {{ vm_app_user | upper }}_SUDO_HOSTS = ALL
+Runas_Alias {{ vm_app_user | upper }}_SUDO_RUNAS = ALL
+Cmnd_Alias  {{ vm_app_user | upper }}_SUDO_CMNDS = ALL
+Cmnd_Alias  {{ vm_app_user | upper }}_SHELLS = /bin/bash, /sbin/nologin, /usr/bin/bash, /usr/sbin/nologin, /bin/csh, /bin/zsh, /bin/tcsh, /bin/ksh, /usr/bin/ksh, /usr/bin/rsh, /bin/chsh, /usr/bin/chsh
+Cmnd_Alias  {{ vm_app_user | upper }}_RP = /usr/bin/passwd root, /usr/bin/passwd paelabsadmin,  /usr/sbin/usermod, /usr/bin/su
+Cmnd_Alias  {{ vm_app_user | upper }}_EXEC = /bin/vi, /bin/vim, /bin/more, /bin/less, /usr/bin/vi, /usr/bin/vim, /usr/bin/more, /usr/bin/less
+%{{ vm_app_user }} {{ vm_app_user | upper }}_SUDO_HOSTS = ({{ vm_app_user | upper }}_SUDO_RUNAS) NOPASSWD: {{ vm_app_user | upper }}_SUDO_CMNDS, !{{ vm_app_user | upper }}_RP, !{{ vm_app_user | upper }}_SHELLS, ({{ vm_app_user | upper }}_SUDO_RUNAS) NOEXEC: {{ vm_app_user | upper }}_EXEC
+%role\ -\ linux\ l4\ users@cisco-cms.com {{ vm_app_user | upper }}_SUDO_HOSTS = ({{ vm_app_user | upper }}_SUDO_RUNAS) NOPASSWD: {{ vm_app_user | upper }}_SUDO_CMNDS, !{{ vm_app_user | upper }}_SHELLS
 xxEOFxx
 %end
 

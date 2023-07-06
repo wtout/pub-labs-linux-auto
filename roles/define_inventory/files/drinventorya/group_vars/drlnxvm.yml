@@ -1,8 +1,8 @@
 ---
 # Variables for standalone VMs
 credentials:
-  username: "{{ NONEM7_USER|default('') }}"
-  password: "{{ NONEM7_PASS|default('') }}"
+  username: "{{ SR_USER|default('') }}"
+  password: "{{ SR_PASS|default('') }}"
 
 user:
   name: "{{ drvm_vars.lnxvm.user.name if drvm_vars.lnxvm.user.name is defined else '' }}"

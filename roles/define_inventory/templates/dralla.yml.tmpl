@@ -24,8 +24,8 @@ drvm_vars:
     memory: "{{ environment_definition.drvm_setting.lnxvm.memory if (environment_definition.drvm_setting.lnxvm.memory is defined and environment_definition.drvm_setting.lnxvm.memory != none) else '' }}"
 
     # Disks sizing in GiB
-    disk0: "{{ environment_definition.drvm_setting.lnxvm.disk0 if (environment_definition.drvm_setting.lnxvm.disk0 is defined and environment_definition.drvm_setting.lnxvm.disk0 != none) else '0' }}"
-    disk1: "{{ environment_definition.drvm_setting.lnxvm.disk1 if (environment_definition.drvm_setting.lnxvm.disk1 is defined and environment_definition.drvm_setting.lnxvm.disk1 != none) else '0' }}"
+    disk0: "{{ environment_definition.drvm_setting.lnxvm.disk0 if (environment_definition.drvm_setting.lnxvm.disk0 is defined and environment_definition.drvm_setting.lnxvm.disk0 != none) else '40' }}"
+    disk1: "{{ environment_definition.drvm_setting.lnxvm.disk1 if (environment_definition.drvm_setting.lnxvm.disk1 is defined and environment_definition.drvm_setting.lnxvm.disk1 != none) else '25' }}"
     disk2: "{{ environment_definition.drvm_setting.lnxvm.disk2 if (environment_definition.drvm_setting.lnxvm.disk2 is defined and environment_definition.drvm_setting.lnxvm.disk2 != none) else '0' }}"
     disk3: "{{ environment_definition.drvm_setting.lnxvm.disk3 if (environment_definition.drvm_setting.lnxvm.disk3 is defined and environment_definition.drvm_setting.lnxvm.disk3 != none) else '0' }}"
 

@@ -34,7 +34,7 @@ On a newly installed Linux **CentOS 7.7+** VM that has docker installed and conf
 
 ### System definition ###
 
-Create your own system definition file under the _``Definitions``_ directory to contain the information defining the instance to deploy. Use the included _``build_def_file.yml``_ file as template
+Create your own system definition file under the _``Definitions``_ directory to contain the information defining the instance to deploy. Use the included _``build_def_info.yml``_ file as template
 
 ***Note**: If you choose to make changes to git tracked items such as directory names or file names or content of files downloaded from the repository, be aware that your changes will be lost every time the automated installation package is updated*
 

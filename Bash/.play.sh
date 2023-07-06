@@ -277,10 +277,10 @@ function get_proxy() {
 			return 0
 		else
 			[[ $- =~ x ]] && debug=1 && [[ "${SECON}" == "true" ]] && set +x
-			get_svc_cred primary user 1>/dev/null && read -r PPUSER <<< "$(get_svc_cred primary user)"
-			get_svc_cred primary pass 1>/dev/null && read -r PPPASS <<< "$(get_svc_cred primary pass)"
-			get_svc_cred secondary user 1>/dev/null && read -r SPUSER <<< "$(get_svc_cred secondary user)"
-			get_svc_cred secondary pass 1>/dev/null && read -r SPPASS <<< "$(get_svc_cred secondary pass)"
+			get_creds primary svc user 1>/dev/null && read -r PPUSER <<< "$(get_creds primary svc user)"
+			get_creds primary svc pass 1>/dev/null && read -r PPPASS <<< "$(get_creds primary svc pass)"
+			get_creds secondary svc user 1>/dev/null && read -r SPUSER <<< "$(get_creds secondary svc user)"
+			get_creds secondary svc pass 1>/dev/null && read -r SPPASS <<< "$(get_creds secondary svc pass)"
 			MYPROXY=$(echo "${MYPROXY}" | sed -e "s|//.*@|//|g" -e "s|//|//${PPUSER}:${PPPASS}@|g")
 			curl --proxy "${MYPROXY}" "${PUBLIC_ADDRESS}" &>/dev/null
 			if [[ ${?} -eq 0 ]]
@@ -343,10 +343,10 @@ function get_creds_prefix() {
 	fi
 }
 
-function get_svc_cred() {
+function get_creds() {
 	if [[ $(get_creds_prefix ${1}) ]]
 	then
-		view_vault vars/passwords.yml Bash/get_common_vault_pass.sh  | grep ^$(get_creds_prefix ${1})SVC_${2^^} | cut -d "'" -f2
+		view_vault vars/passwords.yml Bash/get_common_vault_pass.sh  | grep ^$(get_creds_prefix ${1})${2^^}_${3^^} | cut -d "'" -f2
 		return 0
 	else
 		return 1
@@ -644,6 +644,7 @@ PASSVAULT="vars/passwords.yml"
 REPOVAULT="vars/.repovault.yml"
 CONTAINERWD="/home/ansible/$(basename ${PWD})"
 CONTAINERREPO="containers.cisco.com/watout/ansible"
+USER_ACCTS="svc r labsadmin appadmin"
 SECON=true
 
 # Main
@@ -678,10 +679,14 @@ get_repo_creds "${REPOVAULT}" Bash/get_repo_vault_pass.sh
 check_updates "${REPOVAULT}" Bash/get_repo_vault_pass.sh
 get_inventory "${@}"
 [[ $- =~ x ]] && debug=1 && [[ "${SECON}" == "true" ]] && set +x
-get_svc_cred primary user 1>/dev/null && echo "PSVC_USER: '$(get_svc_cred primary user)'" > "${SVCVAULT}"
-get_svc_cred primary pass 1>/dev/null && echo "PSVC_PASS: '$(get_svc_cred primary pass)'" >> "${SVCVAULT}"
-get_svc_cred secondary user 1>/dev/null && echo "SSVC_USER: '$(get_svc_cred secondary user)'" >> "${SVCVAULT}"
-get_svc_cred secondary pass 1>/dev/null && echo "SSVC_PASS: '$(get_svc_cred secondary pass)'" >> "${SVCVAULT}"
+rm -f "${SVCVAULT}"; touch "${SVCVAULT}"
+for c in ${USER_ACCTS}
+do
+	get_creds primary ${c} user 1>/dev/null && echo -e "P${c^^}_USER: '$(get_creds primary ${c} user)'" >> "${SVCVAULT}"
+	get_creds primary ${c} pass 1>/dev/null && echo -e "P${c^^}_PASS: '$(get_creds primary ${c} pass)'" >> "${SVCVAULT}"
+	get_creds secondary ${c} user 1>/dev/null && echo -e "S${c^^}_USER: '$(get_creds secondary ${c} user)'" >> "${SVCVAULT}"
+	get_creds secondary ${c} pass 1>/dev/null && echo -e "S${c^^}_PASS: '$(get_creds secondary ${c} pass)'" >> "${SVCVAULT}"
+done
 [[ ${debug} == 1 ]] && set -x
 add_write_permission "${SVCVAULT}"
 encrypt_vault "${SVCVAULT}" Bash/get_common_vault_pass.sh
