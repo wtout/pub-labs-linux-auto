@@ -11,12 +11,6 @@
       name: "{{ vm.name }}"
       validate_certs: no
     register: disk_info
-  - debug:
-      msg:
-        - "{{ disk_info.guest_disk_info | dict2items | selectattr('key','equalto', '0') | list }}"
-        - "{{ disk_info.guest_disk_info | dict2items | selectattr('key','equalto', '1') | list }}"
-        - "{{ disk_info.guest_disk_info | dict2items | selectattr('key','equalto', '2') | list }}"
-        - "{{ disk_info.guest_disk_info | dict2items | selectattr('key','equalto', '3') | list }}"
   - name: Define VM disk0
     ansible.builtin.set_fact:
       disk0_unit_number: "{{ disk_info.guest_disk_info | dict2items | selectattr('key','equalto', '0') | map(attribute='value.unit_number') | list| to_yaml | regex_replace('[\\[|\\]]', '') | replace('\n', '') }}"

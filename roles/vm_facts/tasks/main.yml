@@ -17,13 +17,16 @@
         loop_var: host_item
         label: "{{ host_item }}"
       when: build.disaster_recovery
+    when: ansible_run_tags != ['docker']
     run_once: true
   - include_tasks: task_check_cluster_name.yml
+    when: ansible_run_tags != ['docker']
   - block:
     - block:
       - include_tasks: task_define_vm_disk_size.yml
       - include_tasks: task_define_groups_list.yml
       when:
+        - ansible_run_tags != ['docker']
         - deploy | default(false)
     - include_tasks: task_define_vm_ip.yml
     when:
