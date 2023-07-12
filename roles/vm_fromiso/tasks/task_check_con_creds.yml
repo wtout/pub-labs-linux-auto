@@ -32,6 +32,7 @@
           ansible.builtin.set_fact:
             ansible_user: "{{ vm_admin_user }}"
             ansible_ssh_pass: "{{ vm_admin_pass }}"
+            ansible_become_pass: "{{ vm_admin_pass }}"
           no_log: true
         - name: check connection
           ansible.builtin.wait_for:
@@ -43,7 +44,7 @@
           check_mode: no
           delegate_to: localhost
         - ansible.builtin.debug:
-            msg: "VM hardening is enabled. Nothing to do"
+            msg: "VM hardening is enabled. Not creating the VM"
         - name: set flag to not create and configure the VMs
           ansible.builtin.set_fact:
             crecon: false
@@ -52,5 +53,6 @@
           ansible.builtin.set_fact:
             ansible_user: "{{ credentials.username }}"
             ansible_ssh_pass: "{{ credentials.password }}"
+            ansible_become_pass: "{{ credentials.password }}"
           no_log: true
   tags: vm_creation

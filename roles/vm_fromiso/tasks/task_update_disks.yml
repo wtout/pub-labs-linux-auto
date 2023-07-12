@@ -11,6 +11,12 @@
       name: "{{ vm.name }}"
       validate_certs: no
     register: disk_info
+  - debug:
+      msg:
+        - "{{ disk_info.guest_disk_info | dict2items | selectattr('key','equalto', '0') | list }}"
+        - "{{ disk_info.guest_disk_info | dict2items | selectattr('key','equalto', '1') | list }}"
+        - "{{ disk_info.guest_disk_info | dict2items | selectattr('key','equalto', '2') | list }}"
+        - "{{ disk_info.guest_disk_info | dict2items | selectattr('key','equalto', '3') | list }}"
   - name: Define VM disk0
     ansible.builtin.set_fact:
       disk0_unit_number: "{{ disk_info.guest_disk_info | dict2items | selectattr('key','equalto', '0') | map(attribute='value.unit_number') | list| to_yaml | regex_replace('[\\[|\\]]', '') | replace('\n', '') }}"
@@ -22,15 +28,41 @@
       - disk_info.guest_disk_info | dict2items | length >= 1
       - vm.disk0 is defined
       - vm.disk0|float > 0
+
+  - name: Define VM disk1
+    ansible.builtin.set_fact:
+      disk1_unit_number: "{{ disk_info.guest_disk_info | dict2items | selectattr('key','equalto', '1') | map(attribute='value.unit_number') | list| to_yaml | regex_replace('[\\[|\\]]', '') | replace('\n', '') }}"
+      disk1_size_kb: "{{ (vm.disk1|float * 1024|pow(2))|int if (vm.disk1 != '' and vm.disk1|float * 1024|pow(2)|int > disk1_readsize|int) else disk1_readsize }}"
+      disk1_datastore: "{{ disk_info.guest_disk_info | dict2items | selectattr('key','equalto', '1') | map(attribute='value.backing_datastore') | list| to_yaml | regex_replace('[\\[|\\]]', '') | replace('\n', '') }}"
+    vars:
+      disk1_readsize: "{{ disk_info.guest_disk_info | dict2items | selectattr('key','equalto', '1') | map(attribute='value.capacity_in_kb') | list | to_yaml | regex_replace('[\\[|\\]]', '') | replace('\n', '') }}"
+    when:
+      - disk_info.guest_disk_info | dict2items | length >= 2
+      - vm.disk1 is defined
+      - vm.disk1|float > 0
   - name: Define VM disk1
     ansible.builtin.set_fact:
       disk1_unit_number: "{{ (disk0_unit_number|int + 1) }}"
       disk1_size_kb: "{{ (vm.disk1|float * 1024|pow(2))|int }}"
       disk1_datastore: "{{ disk0_datastore }}"
+      disk1_add: true
     when:
+      - disk_info.guest_disk_info | dict2items | length < 2
       - vm.disk1 is defined
       - vm.disk1 != ''
       - vm.disk1|float > 0
+
+  - name: Define VM disk2
+    ansible.builtin.set_fact:
+      disk2_unit_number: "{{ disk_info.guest_disk_info | dict2items | selectattr('key','equalto', '2') | map(attribute='value.unit_number') | list| to_yaml | regex_replace('[\\[|\\]]', '') | replace('\n', '') }}"
+      disk2_size_kb: "{{ (vm.disk2|float * 1024|pow(2))|int if (vm.disk2 != '' and vm.disk2|float * 1024|pow(2)|int > disk2_readsize|int) else disk2_readsize }}"
+      disk2_datastore: "{{ disk_info.guest_disk_info | dict2items | selectattr('key','equalto', '2') | map(attribute='value.backing_datastore') | list| to_yaml | regex_replace('[\\[|\\]]', '') | replace('\n', '') }}"
+    vars:
+      disk2_readsize: "{{ disk_info.guest_disk_info | dict2items | selectattr('key','equalto', '2') | map(attribute='value.capacity_in_kb') | list | to_yaml | regex_replace('[\\[|\\]]', '') | replace('\n', '') }}"
+    when:
+      - disk_info.guest_disk_info | dict2items | length >= 3
+      - vm.disk2 is defined
+      - vm.disk2|float > 0
   - name: Define datastore to host Disk2 for Splunk Indexers
     ansible.builtin.set_fact:
       splind_datastore: "{{ myssd_names|select('regex', '-%02d'|format(vm.hostmap[inventory_hostname[-2:]|int - 1]|int))|list|join if vm.hostmap|default([]) != [] else myssd_names[1] if inventory_hostname[-2:]|int % 2 == 0 else myssd_names[0] }}"
@@ -44,31 +76,36 @@
       disk2_unit_number: "{{ (disk1_unit_number|int + 1) }}"
       disk2_size_kb: "{{ (vm.disk2|float * 1024|pow(2))|int }}"
       disk2_datastore: "{{ splind_datastore if (inventory_hostname is search('splind') and hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['deptype'] == 'a') else disk0_datastore }}"
+      disk2_add: true
     when:
+      - disk_info.guest_disk_info | dict2items | length < 3
       - vm.disk2 is defined
       - vm.disk2 != ''
       - vm.disk2|float > 0
+
+  - name: Define VM disk3
+    ansible.builtin.set_fact:
+      disk3_unit_number: "{{ disk_info.guest_disk_info | dict2items | selectattr('key','equalto', '3') | map(attribute='value.unit_number') | list| to_yaml | regex_replace('[\\[|\\]]', '') | replace('\n', '') }}"
+      disk3_size_kb: "{{ (vm.disk3|float * 1024|pow(2))|int if (vm.disk3 != '' and vm.disk3|float * 1024|pow(2)|int > disk3_readsize|int) else disk3_readsize }}"
+      disk3_datastore: "{{ disk_info.guest_disk_info | dict2items | selectattr('key','equalto', '3') | map(attribute='value.backing_datastore') | list| to_yaml | regex_replace('[\\[|\\]]', '') | replace('\n', '') }}"
+    vars:
+      disk3_readsize: "{{ disk_info.guest_disk_info | dict2items | selectattr('key','equalto', '3') | map(attribute='value.capacity_in_kb') | list | to_yaml | regex_replace('[\\[|\\]]', '') | replace('\n', '') }}"
+    when:
+      - disk_info.guest_disk_info | dict2items | length >= 4
+      - vm.disk3 is defined
+      - vm.disk3|float > 0
   - name: Define VM disk3
     ansible.builtin.set_fact:
       disk3_unit_number: "{{ (disk2_unit_number|int + 1) }}"
       disk3_size_kb: "{{ (vm.disk3|float * 1024|pow(2))|int }}"
       disk3_datastore: "{{ disk1_datastore }}"
+      disk3_add: true
     when:
+      - disk_info.guest_disk_info | dict2items | length < 4
       - vm.disk3 is defined
       - vm.disk3 != ''
       - vm.disk3|float > 0
 
-  - name: Power-off VM
-    community.vmware.vmware_guest:
-      hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
-      username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
-      password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
-      datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
-      cluster: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['cluster'] }}"
-      folder: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] + '/vm' + (('' if fldr_name is regex('^/') else '/') + fldr_name if fldr_name != '' else '') }}"
-      name: "{{ vm.name }}"
-      state: poweredoff
-      validate_certs: no
   - name: Update VM Disk0 settings
     community.vmware.vmware_guest_disk:
       hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
@@ -109,7 +146,7 @@
       validate_certs: no
     register: vmguest_disk1
     until: vmguest_disk1 is succeeded
-    notify: expand disk1
+    notify: "{{ 'add disk1' if disk1_add|default(false) else 'expand disk1' }}"
     when:
       - vm.disk1 is defined
       - vm.disk1|float > 0
@@ -131,7 +168,7 @@
       validate_certs: no
     register: vmguest_disk2
     until: vmguest_disk2 is succeeded
-    notify: expand disk2
+    notify: "{{ 'add disk2' if disk2_add|default(false) else 'expand disk2' }}"
     when:
       - vm.disk2 is defined
       - vm.disk2 != ''
@@ -154,7 +191,7 @@
       validate_certs: no
     register: vmguest_disk3
     until: vmguest_disk3 is succeeded
-    notify: expand disk3
+    notify: "{{ 'add disk3' if disk3_add|default(false) else 'expand disk3' }}"
     when:
       - vm.disk3 is defined
       - vm.disk3 != ''

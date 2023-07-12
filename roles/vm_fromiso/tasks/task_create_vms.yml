@@ -9,6 +9,7 @@
           vars:
             folder_name: "{{ fldr_name }}"
       when:
+        - crecon | default(true) | bool
         - "'stack' in group_names"
         - inventory_hostname == ansible_play_hosts | intersect(groups['stack']) | first
     - include_tasks:
@@ -17,6 +18,7 @@
           vars:
             folder_name: "{{ fldr_name }}"
       when:
+        - crecon | default(true) | bool
         - build.disaster_recovery
         - "'dr' in group_names"
         - inventory_hostname == ansible_play_hosts | intersect(groups['dr']) | first
@@ -56,6 +58,7 @@
             vars:
               folder_name: "{{ fldr_name }}"
         when:
+          - crecon | default(true) | bool
           - "'stack' in group_names"
           - inventory_hostname == ansible_play_hosts | intersect(groups['stack']) | first
       - include_tasks:
@@ -64,6 +67,7 @@
             vars:
               folder_name: "{{ fldr_name }}"
         when:
+          - crecon | default(true) | bool
           - build.disaster_recovery
           - "'dr' in group_names"
           - inventory_hostname == ansible_play_hosts | intersect(groups['dr']) | first
@@ -71,17 +75,17 @@
     - include_tasks: task_create_cluster.yml
       run_once: true
       when:
+        - crecon | default(true) | bool
         - ansible_play_hosts | reject('search', 'dr') | length >= 1
         - hostvars[groups['vcenter'][0]]['cluster_host'] == []
     - include_tasks: task_create_cluster.yml
       run_once: true
       when:
+        - crecon | default(true) | bool
         - build.disaster_recovery
         - ansible_play_hosts | select('search', 'dr') | length >= 1
         - hostvars[groups['drvcenter'][0]]['cluster_host'] == []
     - include_tasks: task_create_configure_vms.yml
     when:
       - hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['deptype'] == 'a'
-
-  when: crecon | default(true) | bool
   tags: vm_creation

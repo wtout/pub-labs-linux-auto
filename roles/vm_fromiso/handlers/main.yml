@@ -9,45 +9,12 @@
   tags: vm_creation
 
 - name: expand disk0
-  ansible.builtin.parted:
-    device: /dev/sda
-    unit: MiB
-    number: 2
+  ansible.builtin.shell: |
+    for BUS in /sys/class/scsi_disk/*/device/rescan; do echo 1 > ${BUS}; done
+    echo -e "d\n3\nn\np\n3\n\n\nw\n" | fdisk /dev/sda
+    partprobe
+    xfs_growfs $(grep ' / ' /etc/fstab | awk '{print $2}')
   become: "{{ true if ansible_user != 'root' else false }}"
-  register: parted_info
-  changed_when: parted_info is succeeded
-  notify: define parted_start
-  tags: vm_creation
-
-- name: define parted_start
-  ansible.builtin.set_fact:
-    parted_start: "{{ task_item.begin | default(0) }}"
-  loop: "{{ parted_info.partitions }}"
-  loop_control:
-    loop_var: task_item
-  when: task_item.num == 2
-  changed_when: parted_info is succeeded
-  notify: delete old disk0 partition
-  tags: vm_creation
-
-- name: delete old disk0 partition
-  ansible.builtin.parted:
-    device: /dev/sda
-    number: 2
-    state: absent
-  become: "{{ true if ansible_user != 'root' else false }}"
-  notify: create new disk0 partition
-  tags: vm_creation
-
-- name: create new disk0 partition
-  ansible.builtin.parted:
-    device: /dev/sda
-    number: 2
-    flags: [ lvm ]
-    part_start: "{{ parted_start }}MiB"
-    state: present
-  become: "{{ true if ansible_user != 'root' else false }}"
-  notify: reboot vm
   tags: vm_creation
 
 - name: reboot vm
@@ -59,6 +26,21 @@
 
 - name: expand disk1
   ansible.builtin.shell: |
+    mp1=$(df -h | grep sdb1 | awk '{print $NF}')
+    umount ${mp1}
+    mv ${mp1} {{ vm.disk1_mount }}
+    for BUS in /sys/class/scsi_disk/*/device/rescan; do echo 1 > ${BUS}; done
+    parted -s /dev/sdb resizepart 1 100%
+    disk1_uuid=$(blkid | grep sdb1 | awk '{print $2}' | sed 's|"||g')
+    sed -i "s|^\(.*${disk1_uuid}\) /[[:alnum:]]* xfs|\1 {{ vm.disk1_mount }} xfs|" /etc/fstab
+    mount -a
+    xfs_growfs -d {{ vm.disk1_mount }}
+  become: "{{ true if ansible_user != 'root' else false }}"
+  tags: vm_creation
+
+- name: add disk1
+  ansible.builtin.shell: |
+    for BUS in /sys/class/scsi_host/host*/scan; do echo "- - -" > ${BUS}; done
     echo -e "n\np\n\n\n\nw\n" | fdisk /dev/sdb
   become: "{{ true if ansible_user != 'root' else false }}"
   notify: create disk1 filesystem
@@ -69,13 +51,21 @@
     fstype: xfs
     device: /dev/sdb1
   become: "{{ true if ansible_user != 'root' else false }}"
+  notify: get disk1 UUID
+  tags: vm_creation
+
+- name: get disk1 UUID
+  ansible.builtin.shell: |
+    blkid | grep sdb1 | awk '{print $2}' | sed 's|"||g'
+  register: reg_disk1_uuid
+  become: "{{ true if ansible_user != 'root' else false }}"
   notify: set disk1 mount points
   tags: vm_creation
 
 - name: set disk1 mount points
-  ansible.builtin.mount:
+  ansible.posix.mount:
     name: "{{ vm.disk1_mount }}"
-    src: /dev/sdb1
+    src: "{{ reg_disk1_uuid.stdout }}"
     fstype: xfs
     opts: defaults
     state: mounted
@@ -97,6 +87,21 @@
 
 - name: expand disk2
   ansible.builtin.shell: |
+    mp2=$(df -h | grep sdc1 | awk '{print $NF}')
+    umount ${mp2}
+    mv ${mp2} {{ vm.disk2_mount }}
+    for BUS in /sys/class/scsi_disk/*/device/rescan; do echo 1 > ${BUS}; done
+    parted -s /dev/sdc resizepart 1 100%
+    disk2_uuid=$(blkid | grep sdc1 | awk '{print $2}' | sed 's|"||g')
+    sed -i "s|^\(.*${disk2_uuid}\) /[[:alnum:]]* xfs|\1 {{ vm.disk2_mount }} xfs|" /etc/fstab
+    mount -a
+    xfs_growfs -d {{ vm.disk2_mount }}
+  become: "{{ true if ansible_user != 'root' else false }}"
+  tags: vm_creation
+
+- name: add disk2
+  ansible.builtin.shell: |
+    for BUS in /sys/class/scsi_host/host*/scan; do echo "- - -" > ${BUS}; done
     echo -e "n\np\n\n\n\nw\n" | fdisk /dev/sdc
   become: "{{ true if ansible_user != 'root' else false }}"
   notify: create disk2 filesystem
@@ -107,13 +112,21 @@
     fstype: xfs
     device: /dev/sdc1
   become: "{{ true if ansible_user != 'root' else false }}"
+  notify: get disk2 UUID
+  tags: vm_creation
+
+- name: get disk2 UUID
+  ansible.builtin.shell: |
+    blkid | grep sdc1 | awk '{print $2}' | sed 's|"||g'
+  register: reg_disk2_uuid
+  become: "{{ true if ansible_user != 'root' else false }}"
   notify: set disk2 mount points
   tags: vm_creation
 
 - name: set disk2 mount points
-  ansible.builtin.mount:
+  ansible.posix.mount:
     name: "{{ vm.disk2_mount }}"
-    src: /dev/sdc1
+    src: "{{ reg_disk2_uuid.stdout }}"
     fstype: xfs
     opts: defaults
     state: mounted
@@ -135,6 +148,21 @@
 
 - name: expand disk3
   ansible.builtin.shell: |
+    mp3=$(df -h | grep sdd1 | awk '{print $NF}')
+    umount ${mp3}
+    mv ${mp3} {{ vm.disk3_mount }}
+    for BUS in /sys/class/scsi_disk/*/device/rescan; do echo 1 > ${BUS}; done
+    parted -s /dev/sdd resizepart 1 100%
+    disk3_uuid=$(blkid | grep sdd1 | awk '{print $2}' | sed 's|"||g')
+    sed -i "s|^\(.*${disk3_uuid}\) /[[:alnum:]]* xfs|\1 {{ vm.disk3_mount }} xfs|" /etc/fstab
+    mount -a
+    xfs_growfs -d {{ vm.disk3_mount }}
+  become: "{{ true if ansible_user != 'root' else false }}"
+  tags: vm_creation
+
+- name: add disk3
+  ansible.builtin.shell: |
+    for BUS in /sys/class/scsi_host/host*/scan; do echo "- - -" > ${BUS}; done
     echo -e "n\np\n\n\n\nw\n" | fdisk /dev/sdd
   become: "{{ true if ansible_user != 'root' else false }}"
   notify: create disk3 filesystem
@@ -145,13 +173,21 @@
     fstype: xfs
     device: /dev/sdd1
   become: "{{ true if ansible_user != 'root' else false }}"
+  notify: get disk3 UUID
+  tags: vm_creation
+
+- name: get disk3 UUID
+  ansible.builtin.shell: |
+    blkid | grep sdd1 | awk '{print $2}' | sed 's|"||g'
+  register: reg_disk3_uuid
+  become: "{{ true if ansible_user != 'root' else false }}"
   notify: set disk3 mount points
   tags: vm_creation
 
 - name: set disk3 mount points
-  ansible.builtin.mount:
+  ansible.posix.mount:
     name: "{{ vm.disk3_mount }}"
-    src: /dev/sdd1
+    src: "{{ reg_disk3_uuid.stdout }}"
     fstype: xfs
     opts: defaults
     state: mounted
