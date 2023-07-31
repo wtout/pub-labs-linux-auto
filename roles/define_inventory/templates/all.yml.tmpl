@@ -9,6 +9,9 @@ build:
   # Official build name
   name: '{{ environment_definition.build.name }}'
 
+  # Requester's email address
+  email: '{{ environment_definition.build.email }}'
+
   # Disaster recovery (boolean yes/no)
   disaster_recovery: {{ environment_definition.build.disaster_recovery }}
 
