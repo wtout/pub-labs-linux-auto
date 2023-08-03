@@ -9,8 +9,14 @@ build:
   # Official build name
   name: '{{ environment_definition.build.name }}'
 
-  # Requestor's email address
-  email: '{{ environment_definition.build.email }}'
+  # team_contact1 (string)
+  team_contact1: '{{ environment_definition.build.team_contact1|default('') }}'
+
+  # team_contact2 (string)
+  team_contact2: '{{ environment_definition.build.team_contact2|default('') }}'
+
+  # team_mailer (string)
+  team_mailer: '{{ environment_definition.build.team_mailer|default('') }}'
 
   # Disaster recovery (boolean yes/no)
   disaster_recovery: {{ environment_definition.build.disaster_recovery }}

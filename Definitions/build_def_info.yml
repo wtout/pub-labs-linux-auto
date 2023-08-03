@@ -5,6 +5,15 @@ build:
   # Build name (string)
   name: build_name
 
+  # team_contact1 (string)
+  team_contact1: 
+
+  # team_contact2 (string)
+  team_contact2: 
+
+  # team_mailer (string)
+  team_mailer: 
+
   version:
 
     # OS ISO (string)

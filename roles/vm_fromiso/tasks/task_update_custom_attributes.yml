@@ -4,7 +4,7 @@
   - name: get date and user's email address
     ansible.builtin.shell: |
       date '+%F'
-      {{ 'git config user.email' if build.email == '' else '' }}
+      {{ 'git config user.email' if build.team_contact1 == '' else '' }}
     register: reg_user_email
     check_mode: no
   - name: Add custom attributes
@@ -22,7 +22,11 @@
             - name: date-created
               value: "{{ reg_user_email.stdout_lines|first }}"
             - name: team-contact1
-              value: "{{ build.email if build.email != '' else reg_user_email.stdout_lines|last }}"
+              value: "{{ build.team_contact1 if build.team_contact1 != '' else reg_user_email.stdout_lines|last }}"
+            - name: team-contact2
+              value: "{{ build.team_contact2 if build.team_contact2 != '' else '' }}"
+            - name: team-mailer
+              value: "{{ build.team_mailer if build.team_mailer != '' else '' }}"
           validate_certs: no
         register: reg_add_attribute
     rescue:
