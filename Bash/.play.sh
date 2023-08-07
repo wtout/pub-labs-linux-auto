@@ -512,10 +512,9 @@ function check_updates() {
 					then
 						git reset -q --hard origin/"${localbranch}"
 						git pull "$(git config --get remote.origin.url | sed -e "s|\(//.*\)@|\1:${REPOPASS}@|")" "${localbranch}" &>"${PWD}"/.pullerr && sed -i "s|${REPOPASS}|xxxxx|" "${PWD}"/.pullerr
-						[[ ${?} == 0 ]] && echo -e "\nThe installation package has been updated. ${BOLD}Please re-run the script for the updates to take effect${NORMAL}\n\n"
-						[[ ${?} != 0 ]] && echo -e "\nThe installation package update has failed with the following error:\n\n${BOLD}$(cat "${PWD}"/.pullerr)${NORMAL}\n\n"
-						rm -f "${PWD}"/.pullerr
-						EC='exit'
+                        [[ ${?} == 0 ]] && echo -e "\nThe installation package has been updated. ${BOLD}Please re-run the script for the updates to take effect${NORMAL}\n\n" && EC='return 3'
+                        [[ ${?} != 0 ]] && echo -e "\nThe installation package update has failed with the following error:\n\n${BOLD}$(cat "${PWD}"/.pullerr)${NORMAL}\n\n" && EC='exit'
+                        rm -f "${PWD}"/.pullerr
 					else
 						EC='continue'
 					fi
@@ -677,31 +676,36 @@ image_prune
 start_container
 get_repo_creds "${REPOVAULT}" Bash/get_repo_vault_pass.sh
 check_updates "${REPOVAULT}" Bash/get_repo_vault_pass.sh
-get_inventory "${@}"
-[[ $- =~ x ]] && debug=1 && [[ "${SECON}" == "true" ]] && set +x
-rm -f "${SVCVAULT}"; touch "${SVCVAULT}"
-for c in ${USER_ACCTS}
-do
-	get_creds primary ${c} user 1>/dev/null && echo -e "P${c^^}_USER: '$(get_creds primary ${c} user)'" >> "${SVCVAULT}"
-	get_creds primary ${c} pass 1>/dev/null && echo -e "P${c^^}_PASS: '$(get_creds primary ${c} pass)'" >> "${SVCVAULT}"
-	get_creds secondary ${c} user 1>/dev/null && echo -e "S${c^^}_USER: '$(get_creds secondary ${c} user)'" >> "${SVCVAULT}"
-	get_creds secondary ${c} pass 1>/dev/null && echo -e "S${c^^}_PASS: '$(get_creds secondary ${c} pass)'" >> "${SVCVAULT}"
-done
-[[ ${debug} == 1 ]] && set -x
-add_write_permission "${SVCVAULT}"
-encrypt_vault "${SVCVAULT}" Bash/get_common_vault_pass.sh
-sudo chown "$(stat -c '%U' "$(pwd)")":"$(stat -c '%G' "$(pwd)")" "${SVCVAULT}"
-sudo chmod 644 "${SVCVAULT}"
-get_hosts "${@}"
-NUM_HOSTSINPLAY=$(echo $(get_hostsinplay "${HL}") | wc -w)
-create_symlink
-stop_container
-add_write_permission "${PWD}/roles"
-add_write_permission "${PWD}/roles/*"
-add_write_permission "${PWD}/roles/*/files"
-enable_logging "${@}"
-start_container
-run_playbook "${@}"
-stop_container
-rm -f ${SVCVAULT}
-disable_logging
+if [[ ${?} -eq 3 ]]
+then
+    stop_container
+else
+	get_inventory "${@}"
+	[[ $- =~ x ]] && debug=1 && [[ "${SECON}" == "true" ]] && set +x
+	rm -f "${SVCVAULT}"; touch "${SVCVAULT}"
+	for c in ${USER_ACCTS}
+	do
+		get_creds primary ${c} user 1>/dev/null && echo -e "P${c^^}_USER: '$(get_creds primary ${c} user)'" >> "${SVCVAULT}"
+		get_creds primary ${c} pass 1>/dev/null && echo -e "P${c^^}_PASS: '$(get_creds primary ${c} pass)'" >> "${SVCVAULT}"
+		get_creds secondary ${c} user 1>/dev/null && echo -e "S${c^^}_USER: '$(get_creds secondary ${c} user)'" >> "${SVCVAULT}"
+		get_creds secondary ${c} pass 1>/dev/null && echo -e "S${c^^}_PASS: '$(get_creds secondary ${c} pass)'" >> "${SVCVAULT}"
+	done
+	[[ ${debug} == 1 ]] && set -x
+	add_write_permission "${SVCVAULT}"
+	encrypt_vault "${SVCVAULT}" Bash/get_common_vault_pass.sh
+	sudo chown "$(stat -c '%U' "$(pwd)")":"$(stat -c '%G' "$(pwd)")" "${SVCVAULT}"
+	sudo chmod 644 "${SVCVAULT}"
+	get_hosts "${@}"
+	NUM_HOSTSINPLAY=$(echo $(get_hostsinplay "${HL}") | wc -w)
+	create_symlink
+	stop_container
+	add_write_permission "${PWD}/roles"
+	add_write_permission "${PWD}/roles/*"
+	add_write_permission "${PWD}/roles/*/files"
+	enable_logging "${@}"
+	start_container
+	run_playbook "${@}"
+	stop_container
+	rm -f ${SVCVAULT}
+	disable_logging
+fi
