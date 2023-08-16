@@ -8,7 +8,7 @@ vm_vars:
   ################
   lnxvm:
 
-{%- if environment_definition.vm_setting.lnxvm.user.name is defined and environment_definition.vm_setting.lnxvm.user.name != none and environment_definition.vm_setting.lnxvm.user.name != '' and environment_definition.vm_setting.lnxvm.user.password is defined and environment_definition.vm_setting.lnxvm.user.password != none and environment_definition.vm_setting.lnxvm.user.password != '' %}
+{%- if environment_definition.vm_setting.lnxvm.user.name is defined and environment_definition.vm_setting.lnxvm.user.name != none and environment_definition.vm_setting.lnxvm.user.name != '' and environment_definition.vm_setting.lnxvm.user.name != PLABSADMIN_USER and environment_definition.vm_setting.lnxvm.user.password is defined and environment_definition.vm_setting.lnxvm.user.password != none and environment_definition.vm_setting.lnxvm.user.password != '' %}
 {% block lnxvmusers %}
     # User credentials
     user:

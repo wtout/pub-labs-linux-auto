@@ -47,11 +47,15 @@ function check_docker_login() {
 	local MYRELEASE
 	local MYDOMAIN
 	local MYJSONFILE
+	local AUTHFILE
+	local LOGGEDIN
+	LOGGEDIN=true
+	AUTHFILE=${HOME}/.docker/config.json
 	MYDOMAIN=$(echo ${CONTAINERREPO}|cut -d '/' -f1)
 	MYRELEASE=$(get_os)
 	case ${MYRELEASE} in
 		CentOS-7)
-			MYJSONFILE=${HOME}/.docker/config.json
+			MYJSONFILE=${AUTHFILE}
 			;;
 		AlmaLinux*)
 			MYJSONFILE=${XDG_RUNTIME_DIR}/containers/auth.json
@@ -59,14 +63,26 @@ function check_docker_login() {
 		*)
 			;;
 	esac
-	if [[ ! -f ${MYJSONFILE} || "$(grep ${MYDOMAIN} ${MYJSONFILE})" == "" ]]
+	if [[ ${MYJSONFILE} == ${AUTHFILE} ]]
+	then
+		if [[ ! -f ${MYJSONFILE} || "$(grep ${MYDOMAIN} ${MYJSONFILE})" == "" ]]
+		then
+			LOGGEDIN=false
+		fi
+	else
+		if [[ ! -f ${AUTHFILE} || "$(grep ${MYDOMAIN} ${AUTHFILE})" == "" ]] && [[ ! -f ${MYJSONFILE} || "$(grep ${MYDOMAIN} ${MYJSONFILE})" == "" ]]
+		then
+			LOGGEDIN=false
+		fi
+	fi
+	if [[ "${LOGGEDIN}" == "false" ]]
 	then
 		if [[ $(check_image; echo "${?}") -ne 0 ]]
 		then
-			echo -e "You must login to ${MYDOMAIN} to gain access to images before running this automation"
+			echo -e "\nYou must login to ${MYDOMAIN} to gain access to images before running this automation"
 			exit 1
 		else
-			echo -e "You must login to ${MYDOMAIN} to gain access to automation images"
+			echo -e "\nYou must login to ${MYDOMAIN} to gain access to automation images"
 		fi
 	fi
 }
@@ -529,7 +545,7 @@ function get_inventory() {
 	sed -i "/^vault_password_file.*$/,+d" "${ANSIBLE_CFG}"
 	if [[ -f ${SYS_DEF} ]]
 	then
-		$(docker_cmd) exec -it ${CONTAINERNAME} ansible-playbook playbooks/getinventory.yml --extra-vars "{SYS_NAME: '${SYS_DEF}'}" -e @"${ANSIBLE_VARS}" -e "{auto_dir: '${CONTAINERWD}'}" $(remove_extra_vars_arg "$(remove_hosts_arg "${@}")") -v
+		$(docker_cmd) exec -it ${CONTAINERNAME} ansible-playbook playbooks/getinventory.yml --extra-vars "{SYS_NAME: '${SYS_DEF}'}" -e @"${SVCVAULT}" --vault-password-file Bash/get_common_vault_pass.sh -e @"${ANSIBLE_VARS}" -e "{auto_dir: '${CONTAINERWD}'}" $(remove_extra_vars_arg "$(remove_hosts_arg "${@}")") -v
 		GET_INVENTORY_STATUS=${?}
 		[[ ${GET_INVENTORY_STATUS} != 0 ]] && exit 1
 	else
@@ -680,7 +696,6 @@ if [[ ${?} -eq 3 ]]
 then
     stop_container
 else
-	get_inventory "${@}"
 	[[ $- =~ x ]] && debug=1 && [[ "${SECON}" == "true" ]] && set +x
 	rm -f "${SVCVAULT}"; touch "${SVCVAULT}"
 	for c in ${USER_ACCTS}
@@ -695,6 +710,7 @@ else
 	encrypt_vault "${SVCVAULT}" Bash/get_common_vault_pass.sh
 	sudo chown "$(stat -c '%U' "$(pwd)")":"$(stat -c '%G' "$(pwd)")" "${SVCVAULT}"
 	sudo chmod 644 "${SVCVAULT}"
+	get_inventory "${@}"
 	get_hosts "${@}"
 	NUM_HOSTSINPLAY=$(echo $(get_hostsinplay "${HL}") | wc -w)
 	create_symlink
