@@ -3,6 +3,7 @@
     - name: check VM reachable
       ansible.builtin.command: ping {{ ansible_host }} -c 1
       register: vh_vm_reachable
+      become: yes
       check_mode: no
       delegate_to: localhost
     - name: check original credentials
@@ -29,6 +30,7 @@
           ansible.builtin.set_fact:
             ansible_user: "{{ vm_admin_user }}"
             ansible_ssh_pass: "{{ vm_admin_pass }}"
+            ansible_become_pass: "{{ vm_admin_pass }}"
           no_log: true
         - name: check connection
           ansible.builtin.wait_for:
