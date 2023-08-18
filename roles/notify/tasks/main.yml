@@ -1,0 +1,26 @@
+---
+# Tasks for notify
+- block:
+  - name: delete svc acct vault file
+    file:
+      path: "{{ file_item }}"
+      state: absent
+    loop:
+      - "{{ SVCFILE | default('') }}"
+    loop_control:
+      loop_var: file_item
+    when: file_item != ''
+    check_mode: no
+    become: yes
+  - name: Get playbook status from {{ LFILE }}
+    ansible.builtin.shell: "grep 'PLAY RECAP' {{ LFILE }} &>/dev/null && sed -n '/PLAY RECAP /{h;b};H;${x;p}' {{ LFILE }} | sed -n '/PLAY RECAP /,+{{ NHOSTS }}p' | grep -v awk | grep -E 'PLAY RECAP|(unreachable|failed)=[1-9]+' || echo 'No Play Recap found'"
+    register: playbook_status
+  - name: define notifcation message
+    set_fact:
+      NOTIF_MSG: "{{ NOTIF_MSG | default ([]) + [((line_item | regex_replace ('^.*[\\|] ', '')).split(' : ')|first).strip()] }}"
+    loop: "{{ playbook_status.stdout_lines | select('regex', '(unreachable=|failed=)[1-9]+') }}"
+    loop_control:
+      loop_var: line_item
+  - assert:
+      that: NOTIF_MSG|default([]) == []
+  tags: [ 'never', 'notify' ]

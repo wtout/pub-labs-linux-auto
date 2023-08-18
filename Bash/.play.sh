@@ -31,6 +31,14 @@ function check_arguments() {
 	fi
 }
 
+function check_deffile() {
+	if [[ ! -f ${SYS_DEF} ]]
+	then
+		echo -e "\n${BOLD}System definition file for ${ENAME} cannot be found. Aborting!${NORMAL}"
+		exit 1
+	fi
+}
+
 function get_os() {
 	local MYRELEASE
 	MYRELEASE=$(grep _MANTISBT_PROJECT= /etc/os-release|cut -d '"' -f2)
@@ -543,15 +551,9 @@ function check_updates() {
 
 function get_inventory() {
 	sed -i "/^vault_password_file.*$/,+d" "${ANSIBLE_CFG}"
-	if [[ -f ${SYS_DEF} ]]
-	then
-		$(docker_cmd) exec -it ${CONTAINERNAME} ansible-playbook playbooks/getinventory.yml --extra-vars "{SYS_NAME: '${SYS_DEF}'}" -e @"${SVCVAULT}" --vault-password-file Bash/get_common_vault_pass.sh -e @"${ANSIBLE_VARS}" -e "{auto_dir: '${CONTAINERWD}'}" $(remove_extra_vars_arg "$(remove_hosts_arg "${@}")") -v
-		GET_INVENTORY_STATUS=${?}
-		[[ ${GET_INVENTORY_STATUS} != 0 ]] && exit 1
-	else
-		echo -e "\n${BOLD}System definition file for ${ENAME} cannot be found. Aborting!${NORMAL}"
-		exit 1
-	fi
+	$(docker_cmd) exec -it ${CONTAINERNAME} ansible-playbook playbooks/getinventory.yml --extra-vars "{SYS_NAME: '${SYS_DEF}'}" -e @"${SVCVAULT}" --vault-password-file Bash/get_common_vault_pass.sh -e @"${ANSIBLE_VARS}" -e "{auto_dir: '${CONTAINERWD}'}" $(remove_extra_vars_arg "$(remove_hosts_arg "${@}")") -v
+	GET_INVENTORY_STATUS=${?}
+	[[ ${GET_INVENTORY_STATUS} != 0 ]] && exit 1
 }
 
 function get_hosts() {
@@ -648,6 +650,15 @@ function disable_logging() {
 	fi
 }
 
+function send_notification() {
+	if [[ "$(check_mode "${@}")" == " " ]]
+	then
+		# Send playbook status notification
+		$(docker_cmd) exec -it ${CONTAINERNAME} ansible-playbook playbooks/notify.yml --extra-vars "{SVCFILE: '${CONTAINERWD}/${SVCVAULT}', LFILE: '${CONTAINERWD}/${NEW_LOG_FILE}', NHOSTS: '${NUM_HOSTSINPLAY}'}" --tags notify -e @"${SVCVAULT}" --vault-password-file Bash/get_common_vault_pass.sh -e @"${ANSIBLE_VARS}" -v &>/dev/null
+		SCRIPT_STATUS=${?}
+	fi
+}
+
 # Parameters definition
 ANSIBLE_CFG="ansible.cfg"
 ANSIBLE_LOG_LOCATION="Logs"
@@ -680,6 +691,7 @@ SYS_ALL="${INVENTORY_PATH}/group_vars/all.yml"
 SVCVAULT="vars/.svc_acct_creds_${ENAME}.yml"
 CONTAINERNAME="$(whoami | cut -d '@' -f1)_ansible_${ANSIBLE_VERSION}_${ENAME}"
 NEW_ARGS=$(clean_arguments '--envname' "${ENAME}" "${@}")
+check_deffile
 set -- && set -- "${@}" "${NEW_ARGS}"
 [[ $- =~ x ]] && debug=1 && [[ "${SECON}" == "true" ]] && set +x
 PROXY_ADDRESS=$(get_proxy) || PA=${?}
@@ -695,6 +707,7 @@ check_updates "${REPOVAULT}" Bash/get_repo_vault_pass.sh
 if [[ ${?} -eq 3 ]]
 then
     stop_container
+    return 1
 else
 	[[ $- =~ x ]] && debug=1 && [[ "${SECON}" == "true" ]] && set +x
 	rm -f "${SVCVAULT}"; touch "${SVCVAULT}"
@@ -722,6 +735,9 @@ else
 	start_container
 	run_playbook "${@}"
 	stop_container
-	rm -f ${SVCVAULT}
 	disable_logging
+	start_container &>/dev/null
+	send_notification "${ORIG_ARGS}"
+	stop_container &>/dev/null
+	return ${SCRIPT_STATUS}
 fi
