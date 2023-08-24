@@ -128,6 +128,11 @@ chage -d `date +%Y-%m-%d` {{ vm_admin_user }}
 # require the {{ vm_app_user }} user to change password at first login
 passwd --expire {{ vm_app_user }}
 
+# Add entry to /etc/sudoers file
+{% if proxy_address is defined and proxy_address != '' %}
+grep https_proxy /etc/sudoers || sed -i 's| XAUTHORITY"| XAUTHORITY"\nDefaults    env_keep += "http_proxy ftp_proxy all_proxy https_proxy no_proxy"|' /etc/sudoers
+{% endif %}
+
 # Add users to /etc/sudoers.d
 cat << xxEOFxx >> /etc/sudoers.d/{{ vm_admin_user }}
 Host_Alias  {{ vm_admin_user | upper }}_SUDO_HOSTS = ALL

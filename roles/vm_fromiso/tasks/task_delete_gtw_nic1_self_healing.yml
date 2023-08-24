@@ -18,4 +18,8 @@
           - not gtw_rebuild|default(false)
         success_msg: 'Deleted the NIC1 gateway successfully'
         fail_msg: 'Unable to delete NIC1 gateway successfully'
+  when:
+    - netconfig.nic1.gateway == ''
+    - netconfig.nic1.ipaddress != ''
+    - netconfig.nic2.ipaddress != ''
   tags: vm_creation
