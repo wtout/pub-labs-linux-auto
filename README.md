@@ -41,6 +41,9 @@ Create your own system definition file under the _``Definitions``_ directory to 
 The system definition file consists of the following variables:
 
   - **build.name** (_String_): Build Name. Required
+  - **team_contact1** (_String_): Email address of the first contact
+  - **team_contact2** (_String_): Email address of the second contact
+  - **team_mailer** (_String_): Email address of the team
   - **build.version.os_iso** (_String_): OS ISO file name
   - **build.deployment_model** (_String_): Required. Valid values are: **a**, **h**, where **a** represents “**a**ppliance” and **h** represents “**h**osted”
   - **build.disaster_recovery** (_Boolean_ **yes**/**no**): Required. Indicates whether or not to build a geo-redundant stack
