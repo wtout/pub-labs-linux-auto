@@ -1,0 +1,4 @@
+---
+# vars file for infra_dns_records
+svc_username: "{{ vars[('S' if 'dr' in group_names else 'P') + 'INFRABUILD_USER'] }}"
+svc_password: "{{ vars[('S' if 'dr' in group_names else 'P') + 'INFRABUILD_PASS'] }}"

@@ -1,0 +1,72 @@
+---
+# tasks file for ldap_integration
+- block:
+  - block:
+    - name: check if VM exists
+      community.vmware.vmware_guest_info:
+        hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
+        username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
+        password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
+        datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
+        name: "{{ vm.name }}"
+        schema: vsphere
+        validate_certs: no
+      no_log: yes
+      delegate_to: localhost
+    rescue:
+    - name: define creds_status
+      ansible.builtin.set_fact:
+        creds_status: 'The VM does not exist'
+  - name: check original credentials
+    block:
+      - name: check VM credentials
+        ansible.builtin.wait_for_connection:
+          timeout: 3
+        register: jd_vm_creds
+        check_mode: no
+    rescue:
+      - name: define creds_status
+        ansible.builtin.set_fact:
+          creds_status: 'The VM IP address is invalid'
+        when:
+          - jd_vm_creds.msg is defined
+          - jd_vm_creds.msg is search('Failed to connect to the host via ssh|Data could not be sent to remote host')
+      - block:
+        - name: check service account credentials
+          block:
+            - name: Switch to {{ vm_admin_user }} user
+              ansible.builtin.set_fact:
+                ansible_user: "{{ vm_admin_user }}"
+                ansible_ssh_pass: "{{ vm_admin_pass }}"
+                ansible_become_pass: "{{ vm_admin_pass }}"
+              no_log: true
+            - name: check updated VM credentials
+              ansible.builtin.wait_for_connection:
+                timeout: 3
+              check_mode: no
+          rescue:
+            - name: define creds_status
+              ansible.builtin.set_fact:
+                creds_status: 'The VM credentials are invalid'
+        when:
+          - jd_vm_creds.msg is defined
+          - jd_vm_creds.msg is search('Invalid/incorrect')
+    when:
+      - creds_status|default('') == ''
+  - ansible.builtin.assert:
+      that:
+        - creds_status|default('') is not search('invalid')
+        - creds_status|default('') is not search('does not exist')
+      fail_msg: "{{ creds_status|default('') }}"
+  - block:
+#    - include_tasks: task_install_ldap_pkgs.yml
+    - include_tasks: task_update_hostname.yml
+    - include_tasks: task_join_domain.yml
+    when: join_domain|default(false)
+  - block:
+    - include_tasks: task_leave_domain.yml
+    when: leave_domain|default(false)
+  when:
+    - infra_admin_user != ''
+    - join_domain | default(false) | bool or leave_domain | default(false) | bool
+  tags: [ 'never', 'ldap_integration' ]

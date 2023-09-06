@@ -1,4 +1,2 @@
 ---
 # vars file for roles/docker
-vm_app_user: "{{ user.name if user.name != '' else vars[('S' if 'dr' in group_names else 'P') + 'APPADMIN_USER'] }}"
-vm_app_pass: "{{ user.password if user.name != '' else vars[('S' if 'dr' in group_names else 'P') + 'APPADMIN_PASS'] }}"

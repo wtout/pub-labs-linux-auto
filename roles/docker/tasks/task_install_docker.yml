@@ -14,6 +14,11 @@
       ansible.builtin.file:
         path: /etc/containers/nodocker
         state: touch
+    - name: set ignore_chown_errors to true in /etc/containers/storage.conf
+      ansible.builtin.replace:
+        path: /etc/containers/storage.conf
+        regexp: '^(ignore_chown_errors =) "false"$'
+        replace: '\g<1> "true"'
     when: ansible_facts.distribution == 'AlmaLinux'
     become: true
   - name: Install Docker
@@ -29,4 +34,19 @@
       - reboot the node
     when: ansible_facts.distribution == 'CentOS'
     become: true
+  - block:
+    - name: check if domain users are allowed to do no password sudo
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers
+        line: '%domain\ users        ALL=(ALL)       NOPASSWD: ALL'
+      check_mode: yes
+      register: reg_ds_check
+      failed_when: reg_ds_check is changed
+    rescue:
+    - name: allow domain users to do no password sudo
+      ansible.builtin.replace:
+        path: /etc/sudoers
+        regexp: '^(.*%wheel.*NOPASSWD: ALL)$'
+        replace: '\g<1>\n\n## Allows members of the "domain users" group to run all commands without a password\n%domain\ users        ALL=(ALL)       NOPASSWD: ALL'
+        validate: /usr/sbin/visudo -cf %s
   tags: [ 'never', 'docker' ]

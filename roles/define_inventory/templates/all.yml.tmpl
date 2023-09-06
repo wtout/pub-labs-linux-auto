@@ -50,7 +50,7 @@ datacenter:
 
   primary:
 
-    # Available datacenters: RTP-Staging, PAE-HX-DC-1, PAE-HX-DC-2, PAE-HX-DC-3, Plat-Ops, Dev Engineering, cdra-Build-Development, PAE-Customer-Build, RTP5, Alln1 (string)
+    # Available datacenters: RTP-Staging, PAE-HX-DC-1, PAE-HX-DC-2, PAE-HX-DC-3, PAE-HX-DC-4, Plat-Ops, Dev Engineering, cdra-Build-Development, PAE-Customer-Build, RTP5, Alln1 (string)
     name: '{{ environment_definition.datacenter.primary.name }}'
 
     # Required if a custom cluster name is to be used
@@ -68,7 +68,7 @@ datacenter:
 
   secondary:
 
-    # Available datacenters: RTP-Staging, PAE-HX-DC-1, PAE-HX-DC-2, PAE-HX-DC-3, Plat-Ops, Dev Engineering, cdra-Build-Development, PAE-Customer-Build, RTP5, Alln1 (string)
+    # Available datacenters: RTP-Staging, PAE-HX-DC-1, PAE-HX-DC-2, PAE-HX-DC-3, PAE-HX-DC-4, Plat-Ops, Dev Engineering, cdra-Build-Development, PAE-Customer-Build, RTP5, Alln1 (string)
     name: '{{ environment_definition.datacenter.secondary.name }}'
 
     # Required if a custom cluster name is to be used
@@ -92,10 +92,10 @@ sysconfig:
   primary:
 
     # DNS servers list
-    dns_servers: {{ [ '172.23.251.21', '172.23.251.22' ] if environment_definition.datacenter.primary.name is regex('RTP-Staging|STG') else ['172.30.251.21', '172.30.251.22'] if environment_definition.datacenter.primary.name is regex('PAE-HX-DC-2|PAE-HX-DC-3|Dev Engineering') else ['172.19.251.21', '172.19.251.22'] }}
+    dns_servers: {{ [ '172.23.251.21', '172.23.251.22' ] if environment_definition.datacenter.primary.name is regex('RTP-Staging|STG') else ['172.30.251.21', '172.30.251.22'] if environment_definition.datacenter.primary.name is regex('PAE-HX-DC|Dev Engineering') else ['172.19.251.21', '172.19.251.22'] }}
 
     # Domain name to use
-    domain_name: "{{ ('staging.' if environment_definition.datacenter.primary.name is regex('RTP-Staging|STG') else '') + 'cisco-' + ('pae' if environment_definition.datacenter.primary.name is regex('PAE-HX-DC-2|PAE-HX-DC-3|Dev Engineering') else 'cms') + '.com' }}"
+    domain_name: "{{ ('staging.' if environment_definition.datacenter.primary.name is regex('RTP-Staging|STG') else '') + 'cisco-' + ('pae' if environment_definition.datacenter.primary.name is regex('PAE-HX-DC|Dev Engineering') else 'cms') + '.com' }}"
 
     # NTP server
     ntp_server: {{ ([environment_definition.vm_setting.sysconfig.ntp_server|unique|join(', ')] if environment_definition.vm_setting.sysconfig.ntp_server|type_debug == 'list' else ("'" + environment_definition.vm_setting.sysconfig.ntp_server|string + "'")) if environment_definition.vm_setting.sysconfig.ntp_server is defined else "'{{ build.primary.octets }}.254'" }}
@@ -103,10 +103,10 @@ sysconfig:
   secondary:
   
     # DNS servers list
-    dns_servers: {{ ([ '172.23.251.21', '172.23.251.22' ] if environment_definition.datacenter.secondary.name is regex('RTP-Staging|STG') else ['172.30.251.21', '172.30.251.22'] if environment_definition.datacenter.secondary.name is regex('PAE-HX-DC-2|PAE-HX-DC-3|Dev Engineering') else ['172.19.251.21', '172.19.251.22']) if environment_definition.build.disaster_recovery else ''  }}
+    dns_servers: {{ ([ '172.23.251.21', '172.23.251.22' ] if environment_definition.datacenter.secondary.name is regex('RTP-Staging|STG') else ['172.30.251.21', '172.30.251.22'] if environment_definition.datacenter.secondary.name is regex('PAE-HX-DC|Dev Engineering') else ['172.19.251.21', '172.19.251.22']) if environment_definition.build.disaster_recovery else ''  }}
 
     # Domain name to use
-    domain_name: "{{ (('staging.' if environment_definition.datacenter.secondary.name is regex('RTP-Staging|STG') else '') + 'cisco-' + ('pae' if environment_definition.datacenter.secondary.name is regex('PAE-HX-DC-2|PAE-HX-DC-3|Dev Engineering') else 'cms') + '.com') if environment_definition.build.disaster_recovery else '' }}"
+    domain_name: "{{ (('staging.' if environment_definition.datacenter.secondary.name is regex('RTP-Staging|STG') else '') + 'cisco-' + ('pae' if environment_definition.datacenter.secondary.name is regex('PAE-HX-DC|Dev Engineering') else 'cms') + '.com') if environment_definition.build.disaster_recovery else '' }}"
 
     # NTP server
     ntp_server: {{ (([environment_definition.drvm_setting.sysconfig.ntp_server|unique|join(', ')] if environment_definition.drvm_setting.sysconfig.ntp_server|type_debug == 'list' else ("'" + environment_definition.drvm_setting.sysconfig.ntp_server|string + "'")) if environment_definition.drvm_setting.sysconfig.ntp_server is defined else "'{{ build.secondary.octets }}.254'") if environment_definition.build.disaster_recovery else '' }}

@@ -39,3 +39,35 @@
     - deploy | default(false) | bool
     - "'stack' in group_names or (build.disaster_recovery and 'dr' in group_names)"
   tags: [ 'never', 'docker' ]
+
+- name: define join_domain
+  ansible.builtin.set_fact:
+    join_domain: true
+  when:
+    - deploy | default(false) | bool
+    - "'stack' in group_names or (build.disaster_recovery and 'dr' in group_names)"
+  tags: [ 'never', 'ldap_integration' ]
+
+- name: define leave_domain
+  ansible.builtin.set_fact:
+    leave_domain: true
+  when:
+    - rollback | default(false) | bool
+    - "'stack' in group_names or (build.disaster_recovery and 'dr' in group_names)"
+  tags: [ 'ldap_integration' ]
+
+- name: define add_dns_records
+  set_fact:
+    add_dns_records: true
+  when: 
+    - deploy | default(false) | bool
+    - "'stack' in group_names or (build.disaster_recovery and 'dr' in group_names)"
+  tags: [ 'infra_dns_records', 'vm_creation' ]
+
+- name: define rollback_dns_records
+  set_fact:
+    rollback_dns_records: true
+  when: 
+    - rollback | default(false) | bool
+    - "'stack' in group_names or (build.disaster_recovery and 'dr' in group_names)"
+  tags: [ 'infra_dns_records', 'vm_creation' ]

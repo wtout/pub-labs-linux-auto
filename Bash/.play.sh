@@ -51,6 +51,16 @@ function get_os() {
 	fi
 }
 
+function add_user_uid_gid() {
+	local MYID
+	MYID=$(whoami)
+	if [[ "$(id ${MYID} | grep 'domain users')" != '' ]]
+	then
+		grep ${MYID} /etc/subuid &>/dev/null || echo -e "${MYID}:$(expr $(tail -1 /etc/subuid|cut -d ':' -f2) + $(tail -1 /etc/subuid|cut -d ':' -f3)):$(tail -1 /etc/subuid|cut -d ':' -f3)" | sudo tee -a /etc/subuid 1>/dev/null
+		yes|sudo cp -p /etc/subuid /etc/subgid
+	fi
+}
+
 function check_docker_login() {
 	local MYRELEASE
 	local MYDOMAIN
@@ -165,7 +175,7 @@ function stop_container() {
 	if [[ $(check_container; echo "${?}") -eq 0 ]]
 	then
 		echo "Stopping container ${CONTAINERNAME}"
-		$(docker_cmd) stop ${CONTAINERNAME}
+		$(docker_cmd) stop ${CONTAINERNAME} &>/dev/null
 	fi
 }
 
@@ -670,11 +680,13 @@ PASSVAULT="vars/passwords.yml"
 REPOVAULT="vars/.repovault.yml"
 CONTAINERWD="/home/ansible/$(basename ${PWD})"
 CONTAINERREPO="containers.cisco.com/watout/ansible"
-USER_ACCTS="svc r labsadmin appadmin"
-SECON=true
+USER_ACCTS="svc r labsadmin appadmin infrabuild"
+SECON=false
 
 # Main
 PID="${$}"
+add_user_uid_gid
+[[ "$(get_os)" == "AlmaLinux"* ]] && podman system migrate
 create_dir "${ANSIBLE_LOG_LOCATION}"
 check_arguments "${@}"
 check_docker_login

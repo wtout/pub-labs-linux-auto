@@ -1,0 +1,19 @@
+---
+# Tasks to configure the hostname
+- block:
+  - name: get current hostname
+    ansible.builtin.command: hostname
+    register: reg_hostname
+    check_mode: no
+  - name: set the hostname with a domain
+    ansible.builtin.command: |
+      hostnamectl set-hostname {{ fqn }}
+    when: reg_hostname.stdout != fqn
+    vars:
+      fqn: "{{ vm.name }}.{{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }}"
+  - name: update hosts file
+    ansible.builtin.lineinfile:
+      path: /etc/hosts
+      line: "{{ netconfig.nic1.ipaddress if vm.name is not search('csr') else netconfig.nic3.ipaddress }}   {{ vm.name }} {{ vm.name }}.{{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }}"
+  become: true
+  tags: [ 'never', 'ldap_integration' ]

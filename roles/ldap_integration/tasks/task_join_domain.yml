@@ -1,0 +1,49 @@
+---
+# Tasks to join the AD domain
+- block:
+  - name: join the {{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }} domain
+    ansible.builtin.shell: echo '{{ infra_admin_pass }}' | realm join -v -U {{ infra_admin_user }} {{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }}
+    register: reg_join_domain
+    no_log: yes
+  - name: change setings in /etc/sssd/sssd.conf
+    ansible.builtin.replace:
+      path: '/etc/sssd/sssd.conf'
+      regexp: '^({{ line_item.param }} =).*$'
+      replace: '\g<1> {{ line_item.value }}'
+    loop:
+      - { param: 'fallback_homedir', value: '/home/%u' }
+      - { param: 'use_fully_qualified_names', value: 'False' }
+    loop_control:
+      loop_var: line_item
+    notify: restart sssd
+  - name: get the Linux distribution
+    ansible.builtin.setup:
+      filter:
+        - 'distribution'
+  - block:
+    - name: Add ad_site to /etc/sssd/sssd.conf
+      ansible.builtin.lineinfile:
+        path: '/etc/sssd/sssd.conf'
+        line: "ad_site = {{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }}"
+        insertafter: '^ad_domain.*$'
+      notify: restart sssd
+    - name: Disable global catalog in /etc/sssd/sssd.conf
+      ansible.builtin.lineinfile:
+        path: '/etc/sssd/sssd.conf'
+        line: 'ad_enable_gc = False'
+#        insertafter: '^ad_domain.*$'
+      notify: restart sssd
+    when:
+      - ansible_facts.distribution == 'AlmaLinux'
+  rescue:
+  - ansible.builtin.debug:
+      msg:
+        - 'Joining the domain failed'
+        - ''
+        - "{{ reg_join_domain|replace(infra_admin_pass,'obfuscated') }}"
+  always:
+  - ansible.builtin.assert:
+      that:
+        - reg_join_domain is succeeded
+  become: "{{ true if ansible_user != 'root' else false }}"
+  tags: [ 'never', 'ldap_integration' ]
