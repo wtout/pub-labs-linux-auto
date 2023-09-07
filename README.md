@@ -102,9 +102,11 @@ The list of roles used in the playbooks:
   - **todo**: determines what roles and/or tasks to execute
   - **vm_facts**: defines the individual VM facts required in the playbook
   - **capcheck**: performs a capacity check of the infrastructure
+  - **infra_dns_records**: creates the DNS records for the VM
   - **vm_fromiso**: deploys the stack's VMs from ISO
   - **vm_hardening**: enables hardening on the VMS created from ISO
   - **docker**: installs and configures docker on the VMS created from ISO
+  - **ldap_integration**: joins the VM to the domain to allow AD users to login
 
 To execute specific role(s), add "_--tags 'role1,role2,etc...'_" as argument to the script.
 

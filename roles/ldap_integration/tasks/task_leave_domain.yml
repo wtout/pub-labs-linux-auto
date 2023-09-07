@@ -8,6 +8,50 @@
       - reg_leave_domain.rc == 1
       - reg_leave_domain.stderr is not search('Couldn\'t find a matching realm')
     no_log: yes
+  - name: get the Linux distribution
+    ansible.builtin.setup:
+      filter:
+        - 'distribution'
+  - block:
+    - name: check if domain users are allowed to do no password sudo
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers
+        line: '%domain\ users        ALL=(ALL)       NOPASSWD: ALL'
+      check_mode: yes
+      register: reg_ds_check
+      failed_when: reg_ds_check is failed or reg_ds_check is not changed
+    rescue:
+    - name: disallow domain users to do no password sudo
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers
+        line: '{{ line_item }}'
+        state: absent
+        validate: /usr/sbin/visudo -cf %s
+      loop:
+        - '## Allows members of the "domain users" group to run all commands without a password'
+        - '%domain\ users        ALL=(ALL)       NOPASSWD: ALL'
+      loop_control:
+        loop_var: line_item
+    become: "{{ true if ansible_user != 'root' else false }}"
+  - block:
+    - name: check if domain users are allowed to SSH to VM
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^AllowGroups.*"domain users"'
+        state: absent
+      check_mode: yes
+      register: reg_ssh_check
+      failed_when: reg_ssh_check is failed or reg_ssh_check is changed
+    rescue:
+    - name: disallow domain users to SSH to VM
+      ansible.builtin.replace:
+        path: /etc/ssh/sshd_config
+        regexp: '^(AllowGroups.*)"domain users"$'
+        replace: '\g<1>'
+      notify: restart sshd
+    become: "{{ true if ansible_user != 'root' else false }}"
+    when:
+      - ansible_facts.distribution == 'CentOS'
   rescue:
   - ansible.builtin.debug:
       msg:

@@ -61,6 +61,20 @@ function add_user_uid_gid() {
 	fi
 }
 
+function add_user_docker_group() {
+	local MYID
+	MYID=$(whoami)
+	if [[ "$(get_os)" == "CentOS"* ]] && [[ "$(id ${MYID} | grep 'domain users')" != '' ]]
+	then
+		if [[ "$(groups | grep docker)" == "" ]]
+		then
+			sudo usermod -aG docker ${MYID}
+			echo -e "\n\n${BOLD}The ${MYID} user got added to the docker group. Please log out and log back in so that your group membership is re-evaluated${NORMAL}\n"
+			exit 1
+		fi
+	fi
+}
+
 function check_docker_login() {
 	local MYRELEASE
 	local MYDOMAIN
@@ -445,14 +459,15 @@ function view_vault() {
 }
 
 function get_repo_creds() {
-	[[ -f ${1} ]] && grep 'REPOPASS=' "${1}" 1>/dev/null && rm -f "${1}"
 	local REPOUSER
 	local REPOPASS
-	if [[ ! -f ${1} ]]
+	if [[ -f ${1} ]]
 	then
-		echo
+		grep 'REPOPASS=' "${1}" 1>/dev/null && rm -f "${1}"
+	else
+		echo -e "\n\nYour ${BOLD}$(git config --get remote.origin.url|cut -d '/' -f3|cut -d '@' -f2)${NORMAL} Repository credentials are needed"
 		read -rp "Enter your Repository username [ENTER]: " REPOUSER
-		read -rsp "Enter your Repository password [ENTER]: " REPOPASS
+		read -rsp "Enter your Repository token [ENTER]: " REPOPASS
 		echo
 		if [[ ${REPOUSER} != "" && ${REPOPASS} != "" ]]
 		then
@@ -681,11 +696,12 @@ REPOVAULT="vars/.repovault.yml"
 CONTAINERWD="/home/ansible/$(basename ${PWD})"
 CONTAINERREPO="containers.cisco.com/watout/ansible"
 USER_ACCTS="svc r labsadmin appadmin infrabuild"
-SECON=false
+SECON=true
 
 # Main
 PID="${$}"
 add_user_uid_gid
+add_user_docker_group
 [[ "$(get_os)" == "AlmaLinux"* ]] && podman system migrate
 create_dir "${ANSIBLE_LOG_LOCATION}"
 check_arguments "${@}"
@@ -722,7 +738,7 @@ then
     return 1
 else
 	[[ $- =~ x ]] && debug=1 && [[ "${SECON}" == "true" ]] && set +x
-	rm -f "${SVCVAULT}"; touch "${SVCVAULT}"
+	rm -f "${SVCVAULT}"; umask 0022; touch "${SVCVAULT}"
 	for c in ${USER_ACCTS}
 	do
 		get_creds primary ${c} user 1>/dev/null && echo -e "P${c^^}_USER: '$(get_creds primary ${c} user)'" >> "${SVCVAULT}"

@@ -5,6 +5,9 @@
     ansible.builtin.shell: echo '{{ infra_admin_pass }}' | realm join -v -U {{ infra_admin_user }} {{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }}
     register: reg_join_domain
     no_log: yes
+    failed_when:
+      - reg_join_domain.rc == 1
+      - reg_join_domain.stderr is not search('Already joined to this domain')
   - name: change setings in /etc/sssd/sssd.conf
     ansible.builtin.replace:
       path: '/etc/sssd/sssd.conf'
@@ -16,6 +19,29 @@
     loop_control:
       loop_var: line_item
     notify: restart sssd
+  - name: check if docker or podman-docker is installed
+    ansible.builtin.shell: |
+      rpm -qa | grep docker
+    register: reg_docker_present
+    check_mode: no
+    ignore_errors: yes
+  - block:
+    - name: check if domain users are allowed to do no password sudo
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers
+        line: '%domain\ users        ALL=(ALL)       NOPASSWD: ALL'
+      check_mode: yes
+      register: reg_ds_check
+      failed_when: reg_ds_check is failed or reg_ds_check is changed
+    rescue:
+    - name: allow domain users to do no password sudo
+      ansible.builtin.replace:
+        path: /etc/sudoers
+        regexp: '^(.*%wheel.*NOPASSWD: ALL)$'
+        replace: '\g<1>\n\n## Allows members of the "domain users" group to run all commands without a password\n%domain\ users        ALL=(ALL)       NOPASSWD: ALL'
+        validate: /usr/sbin/visudo -cf %s
+    become: "{{ true if ansible_user != 'root' else false }}"
+    when: reg_docker_present.stdout is search('docker')
   - name: get the Linux distribution
     ansible.builtin.setup:
       filter:
@@ -31,10 +57,28 @@
       ansible.builtin.lineinfile:
         path: '/etc/sssd/sssd.conf'
         line: 'ad_enable_gc = False'
-#        insertafter: '^ad_domain.*$'
       notify: restart sssd
     when:
       - ansible_facts.distribution == 'AlmaLinux'
+  - block:
+    - name: check if domain users are allowed to SSH to VM
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^AllowGroups.*"domain users"'
+        state: absent
+      check_mode: yes
+      register: reg_ssh_check
+      failed_when: reg_ssh_check is failed or reg_ssh_check is not changed
+    rescue:
+    - name: allow domain users to SSH to VM
+      ansible.builtin.replace:
+        path: /etc/ssh/sshd_config
+        regexp: '^(AllowGroups.*)$'
+        replace: '\g<1> "domain users"'
+      notify: restart sshd
+    become: "{{ true if ansible_user != 'root' else false }}"
+    when:
+      - ansible_facts.distribution == 'CentOS'
   rescue:
   - ansible.builtin.debug:
       msg:
