@@ -16,35 +16,35 @@ build:
 
   version:
 
-    # OS ISO (string)
+    # OS ISO (required) (string)
     os_iso: 
 
-  # Deployment model (string a/h/)
+  # Deployment model (required) (string a/h/)
   deployment_model: a
 
-  # Disaster recovery (boolean yes/no)
+  # Disaster recovery (required) (boolean yes/no)
   disaster_recovery: yes
 
   primary:
 
-  # Number of primary VMs (integer)
+  # Number of primary VMs (required) (integer)
     number_of_lnxvm: 3
 
-  # Primary site name prefix (string)
+  # Primary site name prefix (required) (string)
     name_prefix: rtp5daautop
 
-  # Primary site first 3 octets (string)
+  # Primary site first 3 octets (required) (string)
     octets: 172.19.135
 
   secondary:
 
-  # Number of secondary VMs (integer)
+  # Number of secondary VMs (required) (integer)
     number_of_lnxvm: 2
 
-  # Secondary site name prefix (string)
+  # Secondary site name prefix (required) (string)
     name_prefix: drrtp5daautop
 
-  # Secondary site first 3 octets (string)
+  # Secondary site first 3 octets (required) (string)
     octets: 172.19.134
 
 ##################################################################################
@@ -54,7 +54,7 @@ datacenter:
 
   primary:
 
-    # Available datacenters: STG-HX-DC, RTP-Staging, PAE-HX-DC-1, PAE-HX-DC-2, PAE-HX-DC-3, Plat-Ops, Dev Engineering, cdra-Build-Development, PAE-Customer-Build, RTP5, Alln1 (string)
+    # Available datacenters: STG-HX-DC, RTP-Staging, PAE-HX-DC-1, PAE-HX-DC-2, PAE-HX-DC-3, Plat-Ops, Dev Engineering, cdra-Build-Development, PAE-Customer-Build, RTP5, Alln1 (required) (string)
     name: cdra-Build-Development
 
     # Required if a custom cluster name is to be used
@@ -65,14 +65,14 @@ datacenter:
     # The primary folder to host the customer's primary stack
     folder: 'Device Availability'
 
-    # ONLY for on-premise deployments, define the list of esxi hosts (resources) to use (string)
+    # Required ONLY for on-premise deployments, define the list of esxi hosts (resources) to use (string)
     # For hosted deployments DO NOT TOUCH
     # Use ',', ';' or space as separator when you have more than one host
     resources: 172.30.240.200, 172.30.240.201, 172.30.240.205, 172.30.240.206, 172.30.240.207, 172.30.240.210
 
   secondary:
 
-    # Available datacenters: STG-HX-DC, RTP-Staging, PAE-HX-DC-1, PAE-HX-DC-2, PAE-HX-DC-3, Plat-Ops, Dev Engineering, cdra-Build-Development, PAE-Customer-Build, RTP5, Alln1 (string)
+    # Available datacenters: STG-HX-DC, RTP-Staging, PAE-HX-DC-1, PAE-HX-DC-2, PAE-HX-DC-3, Plat-Ops, Dev Engineering, cdra-Build-Development, PAE-Customer-Build, RTP5, Alln1 (required) (string)
     name: cdra-Build-Development
 
     # Required if a custom cluster name is to be used
@@ -83,12 +83,16 @@ datacenter:
     # The secondary folder to host the customer's secondary stack
     folder: 
 
-    # ONLY for on-premise deployments, define the list of esxi hosts (resources) to use (string)
+    # Required ONLY for on-premise deployments, define the list of esxi hosts (resources) to use (string)
     # For hosted deployments DO NOT TOUCH
     # Use ',', ';' or space as separator when you have more than one host
     resources: 172.30.240.211, 172.30.240.212, 172.30.240.213
 
 
+##############################################################################
+# These variables are mandatory because there are only a few default values defined for VMs
+# VM Settings information. Memory and disk size must be in GiB
+##############################################################################
 vm_setting:
   lnxvm:
     cpu: 2
