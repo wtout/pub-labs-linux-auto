@@ -17,6 +17,7 @@
           EOF
           {% endif %}
         register: reg_pdr
+        failed_when: reg_pdr.rc != 0 and reg_pdr.stderr is not search('tsig verify failure')
         until: reg_pdr is succeeded
         delay: 10
         no_log: yes
@@ -71,6 +72,7 @@
           EOF
           {% endif %}
         register: reg_sdr
+        failed_when: reg_sdr.rc != 0 and reg_sdr.stderr is not search('tsig verify failure')
         until: reg_sdr is succeeded
         delay: 10
         no_log: yes
