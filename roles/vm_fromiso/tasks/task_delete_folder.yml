@@ -22,9 +22,9 @@
           username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
           password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
           datacenter_name: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
-          folder_name: "{{ folder_name.split('/')[1:]|join('/') }}"
+          folder_name: "{{ folder_name.split('/')[(2 if folder_name is regex('^/') else 1):]|join('/') }}"
           folder_type: vm
-          parent_folder: "{{ folder_name.split('/')|first }}"
+          parent_folder: "{{ folder_name.split('/')[1 if folder_name is regex('^/') else 0] }}"
           state: absent
           validate_certs: no
         register: cust_folder
