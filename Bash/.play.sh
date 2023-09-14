@@ -525,13 +525,13 @@ function check_updates() {
 				local REPOPWD
 				local REMOTEURL
 				local REMOTEID
-				[[ "$(git config --get remote.origin.url | grep 'wwwin-github')" != "" ]] && [[ ${PROXY_ADDRESS} != "" ]] && UNSET_PROXY="true"
+				[[ "$(git config --get remote.origin.url | grep 'wwwin-github')" != "" ]] && [[ ${PROXY_ADDRESS} != "" ]] && SET_PROXY="true"
 				for i in {1..3}
 				do
 					[[ $- =~ x ]] && debug=1 && [[ "${SECON}" == "true" ]] && set +x
 					REPOPWD="${REPOPASS//@/%40}"
 					[[ "$(git config --get remote.origin.url | grep '\/\/.*@')" == "" ]] && REMOTEURL=$(git config --get remote.origin.url | sed -e "s|//\(\w\)|//${REPOUSER}:${REPOPWD}@\1|") || REMOTEURL=$(git config --get remote.origin.url | sed -e "s|//.*@|//${REPOUSER}:${REPOPWD}@|")
-					REMOTEID=$([[ ${UNSET_PROXY} ]] && export https_proxy=${PROXY_ADDRESS}; git ls-remote "${REMOTEURL}" refs/heads/"${localbranch}" 2>"${ANSIBLE_LOG_LOCATION}"/"${PID}"-remoteid.stderr | cut -c1-7)
+					REMOTEID=$([[ ${SET_PROXY} ]] && export https_proxy=${PROXY_ADDRESS}; git ls-remote "${REMOTEURL}" refs/heads/"${localbranch}" 2>"${ANSIBLE_LOG_LOCATION}"/"${PID}"-remoteid.stderr | cut -c1-7)
 					[[ ${debug} == 1 ]] && set -x
 					[[ ${REMOTEID} == "" ]] && sleep 3 || break
 				done
