@@ -171,7 +171,6 @@ function start_container() {
 	if [[ $(check_container; echo "${?}") -ne 0 ]]
 	then
 		[[ ! -d ${HOME}/.ssh ]] && mkdir ${HOME}/.ssh
-		sleep 10
 		echo "Starting container ${CONTAINERNAME}"
 		[[ $- =~ x ]] && debug=1 && [[ "${SECON}" == "true" ]] && set +x
 		if [[ "${ANSIBLE_LOG_PATH}" == "" ]]
@@ -314,7 +313,7 @@ function get_proxy() {
 			echo "${MYPROXY}"
 			return 0
 		else
-			echo -e "Unable to find proxy configuration in /etc/environment /etc/profile ~/.bashrc ~/.bash_profile. Aborting!\n"
+			echo -e "Unable to find proxy configuration in /etc/environment /etc/profile /etc/profile.d/ ~/.bashrc ~/.bash_profile. Aborting!\n"
 			return 1
 		fi
 	else
@@ -325,10 +324,10 @@ function get_proxy() {
 			return 0
 		else
 			[[ $- =~ x ]] && debug=1 && [[ "${SECON}" == "true" ]] && set +x
-			get_creds primary svc user 1>/dev/null && read -r PPUSER <<< "$(get_creds primary svc user)"
-			get_creds primary svc pass 1>/dev/null && read -r PPPASS <<< "$(get_creds primary svc pass)"
-			get_creds secondary svc user 1>/dev/null && read -r SPUSER <<< "$(get_creds secondary svc user)"
-			get_creds secondary svc pass 1>/dev/null && read -r SPPASS <<< "$(get_creds secondary svc pass)"
+			select_creds primary vcenter_service user "${PCREDS_LIST[@]}" 1>/dev/null && read -r PPUSER <<< "$(select_creds primary vcenter_service user "${PCREDS_LIST[@]}")"
+			select_creds primary vcenter_service pass "${PCREDS_LIST[@]}" 1>/dev/null && read -r PPPASS <<< "$(select_creds primary vcenter_service pass "${PCREDS_LIST[@]}" "${PCREDS_LIST[@]}")"
+			select_creds secondary vcenter_service user "${SCREDS_LIST[@]}" 1>/dev/null && read -r SPUSER <<< "$(select_creds secondary vcenter_service user "${SCREDS_LIST[@]}")"
+			select_creds secondary vcenter_service pass "${SCREDS_LIST[@]}" 1>/dev/null && read -r SPPASS <<< "$(select_creds secondary vcenter_service pass "${SCREDS_LIST[@]}")"
 			MYPROXY=$(echo "${MYPROXY}" | sed -e "s|//.*@|//|g" -e "s|//|//${PPUSER}:${PPPASS}@|g")
 			curl --proxy "${MYPROXY}" "${PUBLIC_ADDRESS}" &>/dev/null
 			if [[ ${?} -eq 0 ]]
@@ -394,7 +393,26 @@ function get_creds_prefix() {
 function get_creds() {
 	if [[ $(get_creds_prefix ${1}) ]]
 	then
-		view_vault vars/passwords.yml Bash/get_common_vault_pass.sh  | grep ^$(get_creds_prefix ${1})${2^^}_${3^^} | cut -d "'" -f2
+		view_vault vars/passwords.yml Bash/get_common_vault_pass.sh | grep ^$(get_creds_prefix ${1}) | sed "s/'//g"
+		return 0
+	else
+		return 1
+	fi
+}
+
+function select_creds() {
+	local SITE
+	local ACCT
+	local CRED
+	local CREDS_LIST
+	SITE=${1}
+	ACCT=${2}
+	CRED=${3}
+	shift; shift; shift
+	CREDS_LIST=("${@}")
+	if [[ "$(echo ${CREDS_LIST})" != '' ]]
+	then
+		echo "${CREDS_LIST[@]}" | grep ^$(get_creds_prefix ${SITE})${ACCT^^}_${CRED^^} | cut -d " " -f2
 		return 0
 	else
 		return 1
@@ -696,7 +714,6 @@ REPOVAULT="vars/.repovault.yml"
 CONTAINERWD="/home/ansible/$(basename ${PWD})"
 CONTAINERREPO="containers.cisco.com/watout/ansible"
 USER_ACCTS="svc r labsadmin appadmin infrabuild"
-SECON=true
 
 # Main
 PID="${$}"
@@ -721,15 +738,18 @@ CONTAINERNAME="$(whoami | cut -d '@' -f1)_ansible_${ANSIBLE_VERSION}_${ENAME}"
 NEW_ARGS=$(clean_arguments '--envname' "${ENAME}" "${@}")
 check_deffile
 set -- && set -- "${@}" "${NEW_ARGS}"
-[[ $- =~ x ]] && debug=1 && [[ "${SECON}" == "true" ]] && set +x
-PROXY_ADDRESS=$(get_proxy) || PA=${?}
-[[ ${PA} -eq 1 ]] && echo -e "\n${PROXY_ADDRESS}\n" && exit ${PA}
-[[ ${debug} == 1 ]] && set -x
 git_config
-add_write_permission ${PWD}/vars
+SECON=$([[ "$(git config user.email|cut -d '@' -f1)" == "watout" ]] && echo "false" || echo "true")
 check_container && stop_container
 image_prune
 start_container
+[[ $- =~ x ]] && debug=1 && [[ "${SECON}" == "true" ]] && set +x
+PCREDS_LIST=$(get_creds primary)
+SCREDS_LIST=$(get_creds secondary)
+PROXY_ADDRESS=$(get_proxy) || PA=${?}
+[[ ${PA} -eq 1 ]] && echo -e "\n${PROXY_ADDRESS}\n" && exit ${PA}
+[[ ${debug} == 1 ]] && set -x
+add_write_permission ${PWD}/vars
 get_repo_creds "${REPOVAULT}" Bash/get_repo_vault_pass.sh
 check_updates "${REPOVAULT}" Bash/get_repo_vault_pass.sh
 if [[ ${?} -eq 3 ]]
@@ -741,10 +761,10 @@ else
 	rm -f "${SVCVAULT}"; umask 0022; touch "${SVCVAULT}"
 	for c in ${USER_ACCTS}
 	do
-		get_creds primary ${c} user 1>/dev/null && echo -e "P${c^^}_USER: '$(get_creds primary ${c} user)'" >> "${SVCVAULT}"
-		get_creds primary ${c} pass 1>/dev/null && echo -e "P${c^^}_PASS: '$(get_creds primary ${c} pass)'" >> "${SVCVAULT}"
-		get_creds secondary ${c} user 1>/dev/null && echo -e "S${c^^}_USER: '$(get_creds secondary ${c} user)'" >> "${SVCVAULT}"
-		get_creds secondary ${c} pass 1>/dev/null && echo -e "S${c^^}_PASS: '$(get_creds secondary ${c} pass)'" >> "${SVCVAULT}"
+		select_creds primary ${c} user "${PCREDS_LIST[@]}" 1>/dev/null && echo -e "P${c^^}_USER: '$(select_creds primary ${c} user "${PCREDS_LIST[@]}")'" >> "${SVCVAULT}"
+		select_creds primary ${c} pass "${PCREDS_LIST[@]}" 1>/dev/null && echo -e "P${c^^}_PASS: '$(select_creds primary ${c} pass "${PCREDS_LIST[@]}")'" >> "${SVCVAULT}"
+		select_creds secondary ${c} user "${SCREDS_LIST[@]}" 1>/dev/null && echo -e "S${c^^}_USER: '$(select_creds secondary ${c} user "${SCREDS_LIST[@]}")'" >> "${SVCVAULT}"
+		select_creds secondary ${c} pass "${SCREDS_LIST[@]}" 1>/dev/null && echo -e "S${c^^}_PASS: '$(select_creds secondary ${c} pass "${SCREDS_LIST[@]}")'" >> "${SVCVAULT}"
 	done
 	[[ ${debug} == 1 ]] && set -x
 	add_write_permission "${SVCVAULT}"
