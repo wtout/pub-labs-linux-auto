@@ -1,0 +1,279 @@
+#jinja2: trim_blocks: False
+{
+  "builders": [
+    {
+      "CPUs": "{{ '{{' }} user `vm-cpu-num` {{ '}}' }}",
+      "RAM": "{{ '{{' }} user `vm-mem-size` {{ '}}' }}",
+      "RAM_reserve_all": false,
+      "boot_command": [
+        "<enter>",
+        "<wait90s>",
+        "<enter>",
+        "<wait1s>",
+        "<enter>",
+        "<wait1s>",
+        "<enter>",
+        "<wait1s>",
+        "<tab>",
+        "<tab>",
+        "<tab>",
+        "<enter>",
+        "<wait1s>",
+        "<down>",
+        "<down>",
+        "<enter>",
+        "<wait1s>",
+        "<enter>",
+        "<wait1s>",
+        "<down>",
+        "<enter>",
+        "<wait1s>",
+        "<down>",
+        "{{ '{{' }} user `vm-netmask1` {{ '}}' }}",
+        "<down>",
+        "{{ '{{' }} user `vm-ipaddress1` {{ '}}' }}",
+        "<down>",
+        "{{ '{{' }} user `vm-gateway1` {{ '}}' }}",
+        "<down>",
+        "{{ '{{' }} user `name-server1` {{ '}}' }},{{ '{{' }} user `name-server2` {{ '}}' }}",
+        "<down>",
+        "{{ '{{' }} user `domain` {{ '}}' }}",
+        "<down>",
+        "<enter>",
+        "<wait1s>",
+        "<down>",
+        "<down>",
+        "<enter>",
+        "<wait1s>",
+        "<up>",
+        "{{ '{{' }} user `proxy-address` {{ '}}' }}",
+        "<down>",
+        "<enter>",
+        "<wait20s>",
+        "<enter>",
+        "<wait1s>",
+        "<enter>",
+        "<wait1s>",
+        "<down>",
+        "<down>",
+        "<down>",
+        "<down>",
+        "<down>",
+        "<enter>",
+        "<wait1s>",
+        "<enter>",
+        "<wait1s>",
+        "<down>",
+        "<enter>",
+        "<wait1s>",
+        "PAE Labs Team",
+        "<down>",
+        "{{ '{{' }} user `vm-name` {{ '}}' }}",
+        "<down>",
+        "{{ '{{' }} user `vm-username` {{ '}}' }}",
+        "<down>",
+        "{{ '{{' }} user `vm-password` {{ '}}' }}",
+        "<down>",
+        "{{ '{{' }} user `vm-password` {{ '}}' }}",
+        "<down>",
+        "<enter>",
+        "<wait1s>",
+        "<enter>",
+        "<wait1s>",
+        "<enter>",
+        "<down>",
+        "<down>",
+        "<enter>",
+        "<wait1s>",
+        "<enter>",
+        "<wait300s>",
+        "<down>",
+        "<down>",
+        "<enter>",
+        "<wait5s>",
+        "<enter>",
+        "<wait60s>",
+        "<enter>",
+        "{{ '{{' }} user `vm-username` {{ '}}' }}",
+        "<enter>",
+        "<wait1s>",
+        "{{ '{{' }} user `vm-password` {{ '}}' }}",
+        "<enter>",
+        "<wait1s>",
+        "sudo su -",
+        "<enter>",
+        "<wait1s>",
+        "{{ '{{' }} user `vm-password` {{ '}}' }}",
+        "<enter>",
+        "rm -f /etc/resolv.conf; ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf",
+        "<enter>",
+        "<wait1s>",
+        "useradd -p $(openssl passwd -6 '{{ vm_app_pass }}') {{ vm_app_user }}; passwd --expire {{ vm_app_user }}",
+        "<enter>",
+        "<wait1s>",
+        "echo -e 'Host_Alias  {{ vm_app_user | upper }}_SUDO_HOSTS = ALL\\nRunas_Alias {{ vm_app_user | upper }}_SUDO_RUNAS = ALL\\nCmnd_Alias  {{ vm_app_user | upper }}_SUDO_CMNDS = ALL\\nCmnd_Alias  {{ vm_app_user | upper }}_SHELLS = /bin/bash, /sbin/nologin, /usr/bin/bash, /usr/sbin/nologin, /bin/csh, /bin/zsh, /bin/tcsh, /bin/ksh, /usr/bin/ksh, /usr/bin/rsh, /bin/chsh, /usr/bin/chsh\\nCmnd_Alias  {{ vm_app_user | upper }}_RP = /usr/bin/passwd root, /usr/bin/passwd paelabsadmin,  /usr/sbin/usermod, /usr/bin/su\\nCmnd_Alias  {{ vm_app_user | upper }}_EXEC = /bin/vi, /bin/vim, /bin/more, /bin/less, /usr/bin/vi, /usr/bin/vim, /usr/bin/more, /usr/bin/less\\n%{{ vm_app_user }} {{ vm_app_user | upper }}_SUDO_HOSTS = ({{ vm_app_user | upper }}_SUDO_RUNAS) NOPASSWD: {{ vm_app_user | upper }}_SUDO_CMNDS, !{{ vm_app_user | upper }}_RP, !{{ vm_app_user | upper }}_SHELLS, ({{ vm_app_user | upper }}_SUDO_RUNAS) NOEXEC: {{ vm_app_user | upper }}_EXEC\\n%role\\ -\\ linux\\ l4\\ users@cisco-cms.com {{ vm_app_user | upper }}_SUDO_HOSTS = ({{ vm_app_user | upper }}_SUDO_RUNAS) NOPASSWD: {{ vm_app_user | upper }}_SUDO_CMNDS, !{{ vm_app_user | upper }}_SHELLS\\n' > /etc/sudoers.d/{{ vm_app_user }}",
+        "<enter>",
+        "<wait1s>",
+{%- if proxy_address is defined and proxy_address != '' -%}
+{%- block profile_config -%}
+        "rm /etc/systemd/system/snapd.service.d/snap_proxy.conf; echo -e 'unset {http,https,ftp,no}_proxy; unset {HTTP,HTTPS,FTP,NO}_PROXY; unset proxy_address\\nproxy_address='{{ proxy_address }}'\\nexport http_proxy=\\${proxy_address}\\nexport https_proxy=\\${proxy_address}\\nexport ftp_proxy=\\${proxy_address}\\nexport no_proxy='.cisco.com,.cisco-pae.com,.staging.cisco-cms.com,.cisco-cms.com,172.19.0.0/16,172.23.0.0/16,172.30.0.0/16'\\n' > /etc/profile.d/setproxy.sh; source /etc/profile.d/setproxy.sh",
+        "<enter>",
+        "<wait1s>",
+        "echo -e 'Acquire::http::Proxy {{ '\\"' }}{{ proxy_address }}{{ '\\"' }};\\nAcquire::https::Proxy {{ '\\"' }}{{ proxy_address }}{{ '\\"' }};\\n' > /etc/apt/apt.conf.d/proxy.conf",
+        "<enter>",
+        "<wait1s>",
+        "sed -i 's|^#\\(Defaults.*https_proxy.*\\)$|\\1|' /etc/sudoers",
+        "<enter>",
+        "<wait1s>",
+{%- endblock profile_config %}
+{%- endif %}
+        "echo 'SSHD: 172.0.0.0/255.0.0.0' >> /etc/hosts.allow; echo 'snmpd: 172.0.0.0/255.0.0.0' >> /etc/hosts.allow",
+        "<enter>",
+        "<wait1s>",
+        "export DEBIAN_FRONTEND=noninteractive; apt-get update; apt-get -yqq install chrony iptables aide snmpd iptables rsyslog expect screen realmd sssd sssd-tools libnss-sss libpam-sss adcli samba-common-bin oddjob oddjob-mkhomedir packagekit",
+        "<enter>",
+        "<wait180s>",
+        "sed -i '/^server.*iburst$/d' /etc/chrony/chrony.conf; sed -i 's/^\\(# Please consider.*\\)$/\\1\\n{% if 'dr' in group_names %} {%- if sysconfig.secondary.ntp_server|type_debug == 'list' %} {%- for line in sysconfig.secondary.ntp_server|join(',')|split(', ') %} {{- 'server ' + line + ' iburst\\n' -}} {% endfor -%} {% else %} {{- 'server ' + sysconfig.secondary.ntp_server + ' iburst\\n' -}} {% endif -%} {% else %} {%- if sysconfig.primary.ntp_server|type_debug == 'list' %} {%- for line in sysconfig.primary.ntp_server|join(',')|split(', ') %} {{- 'server ' + line + ' iburst\\n' -}} {% endfor -%} {% else %} {{- 'server ' + sysconfig.primary.ntp_server + ' iburst\\n' -}} {% endif -%} {% endif -%}/' /etc/chrony/chrony.conf",
+        "<enter>",
+        "<wait1s>"
+      ],
+      "boot_order": "disk,cdrom,floppy",
+      "boot_wait": "5s",
+      "convert_to_template": false,
+      "datacenter": "{{ '{{' }} user `vsphere-datacenter` {{ '}}' }}",
+      "datastore": "{{ '{{' }} user `vsphere-datastore` {{ '}}' }}",
+      "folder": "{{ '{{' }} user `vsphere-folder` {{ '}}' }}",
+      "guest_os_type": "ubuntu64Guest",
+      "insecure_connection": "true",
+      "iso_url": "{{ '{{' }} user `iso_url` {{ '}}' }}",
+      "iso_checksum": "{{ '{{' }} user `iso_checksum` {{ '}}' }}",
+      "configuration_parameters": {
+        "scsi0.pciSlotNumber": "16",
+        "ethernet0.pciSlotNumber": "160",
+        "ethernet1.pciSlotNumber": "192"
+      },
+      "network_adapters": [
+        {
+          "network": "{{ '{{' }} user `vsphere-network1` {{ '}}' }}",
+          "network_card": "vmxnet3"
+        }
+{%- if netconfig.nic2.ipaddress != '' -%}
+        ,
+        {
+          "network": "{{ '{{' }} user `vsphere-network2` {{ '}}' }}",
+          "network_card": "vmxnet3"
+        }
+{%- endif %}
+      ],
+      "notes": "Build via Packer",
+      "password": "{{ '{{' }} user `vsphere-password` {{ '}}' }}",
+      "ssh_username": "{{ '{{' }} user `vm-username` {{ '}}' }}",
+      "ssh_password": "{{ '{{' }} user `vm-password` {{ '}}' }}",      
+      "disk_controller_type": [
+        "lsilogic"
+{%- if vm.disk1|int != 0 -%}
+{%- block dskcntlr1 -%}
+,
+        "lsilogic"
+{%- endblock dskcntlr1 %}
+{%- endif %}
+{%- if vm.disk2|int != 0 -%}
+{%- block dskcntlr2 -%}
+,
+        "lsilogic"
+{%- endblock dskcntlr2 %}
+{%- endif %}
+{%- if vm.disk3|int != 0 -%}
+{%- block dskcntlr3 -%}
+,
+        "lsilogic"
+{%- endblock dskcntlr3 %}
+{%- endif %}
+      ],
+      "storage": [
+        {
+          "disk_size": "{{ '{{' }} user `vm-disk-size0` {{ '}}' }}",
+          "disk_thin_provisioned": "{{ '{{' }} user `vm-thin-provisioning` {{ '}}' }}"
+        }
+{%- if vm.disk1|int != 0 -%}
+{%- block disk1 -%}
+,
+        {
+          "disk_size": "{{ '{{' }} user `vm-disk-size1` {{ '}}' }}",
+          "disk_thin_provisioned": "{{ '{{' }} user `vm-thin-provisioning` {{ '}}' }}"
+        }
+{%- endblock disk1 %}
+{%- endif %}
+{%- if vm.disk2|int != 0 -%}
+{%- block disk2 -%}
+,
+        {
+          "disk_size": "{{ '{{' }} user `vm-disk-size2` {{ '}}' }}",
+          "disk_thin_provisioned": "{{ '{{' }} user `vm-thin-provisioning` {{ '}}' }}"
+        }
+{%- endblock disk2 %}
+{%- endif %}
+{%- if vm.disk3|int != 0 -%}
+{%- block disk3 -%}
+,
+        {
+          "disk_size": "{{ '{{' }} user `vm-disk-size3` {{ '}}' }}",
+          "disk_thin_provisioned": "{{ '{{' }} user `vm-thin-provisioning` {{ '}}' }}"
+        }
+{%- endblock disk3 %}
+{%- endif %}
+      ],
+      "type": "vsphere-iso",
+      "username": "{{ '{{' }} user `vsphere-user` {{ '}}' }}",
+      "vcenter_server": "{{ '{{' }} user `vsphere-server` {{ '}}' }}",
+      "cluster": "{{ '{{' }} user `vsphere-cluster` {{ '}}' }}",
+      "vm_name": "{{ '{{' }} user `vm-name` {{ '}}' }}"
+    }
+  ],
+  "variables": {
+    "ssh_username": "autobot",
+    "ssh_key": "",
+    "ssh_key_cert": "",
+    "ssh_keypair": "",
+    "vsphere-datacenter": "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}",
+    "vsphere-cluster": "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['cluster'] }}",
+    "vsphere-datastore": "{{ vm_ds }}",
+    "vsphere-folder": "{{ fldr_name }}",
+    "vsphere-network1": "{{ netconfig.nic1.network }}",
+    "vsphere-network2": "{{ netconfig.nic2.network }}",
+    "vsphere-server": "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}",
+    "vsphere-user": "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] | replace('\\', '\\\\') }}",
+    "vsphere-password": "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}",
+    "iso_checksum": "{{ iso_info.stat.checksum }}",
+    "iso_url": "{{ auto_dir }}/{{ iso_dir }}/{{ iso_installer }}",
+    "vm-cpu-num": "{{ vm.cpu }}",
+    "vm-mem-size": "{{ vm.memory|int * 1024 }}",
+    "vm-disk-size0": "{{ vm.disk0|int * 1024 }}",
+    "vm-disk-size1": "{{ vm.disk1|int * 1024 }}",
+    "vm-disk-size2": "{{ vm.disk2|int * 1024 }}",
+    "vm-disk-size3": "{{ vm.disk3|int * 1024 }}",
+    "vm-thin-provisioning": "{{ true if (vm.disk_provisioning == 'thin') or (hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] is search('PAE-HX-DC')) else false }}",
+    "vm-name": "{{ vm.name }}",
+    "vm-username": "{{ vm_admin_user }}",
+    "vm-password": "{{ vm_admin_pass }}",
+    "vm-ipaddress1": "{{ netconfig.nic1.ipaddress }}",
+    "vm-ipaddress2": "{{ netconfig.nic2.ipaddress }}",
+    "vm-netmask1": "{{ (netconfig.nic1.ipaddress|split('.'))[:-1]|join('.') }}.0/24",
+    "vm-netmask2": "{{ netconfig.nic2.netmask }}",
+    "vm-gateway1": "{{ netconfig.nic1.gateway if netconfig.nic1.gateway != '' else build.secondary.octets + '.62' if inventory_hostname is search('dr') else build.primary.octets + '.62' }}",
+    "vm-gateway2": "{{ netconfig.nic2.gateway }}",
+    "name-server1": "{{ sysconfig.secondary.dns_servers[0] if 'dr' in group_names else sysconfig.primary.dns_servers[0] }}",
+    "name-server2": "{{ sysconfig.secondary.dns_servers[1] if 'dr' in group_names else sysconfig.primary.dns_servers[1] }}",
+    "domain": "{{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }}",
+    "timesync-server": "{{ sysconfig.secondary.ntp_server if 'dr' in group_names else sysconfig.primary.ntp_server }}",
+    "proxy-address": "{{ proxy_address }}",
+    "ansible_extra_vars_level": "",
+    "ansible_extra_vars_distro": "",
+    "os_family": "",
+    "os_distro": "",
+    "os_majversion": "",
+    "ansible_command": "ansible-playbook",
+    "ansible_playbook_file": "",
+    "ansible_extra_vars_cis_cat": ""
+  }
+}

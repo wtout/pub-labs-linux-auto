@@ -1,0 +1,19 @@
+---
+# tasks to create VM using Packer
+- name: Create VM
+  block:
+    - name: Deploy VM from ISO
+      ansible.builtin.shell: ( export PACKER_LOG=1; export PACKER_LOG_PATH={{ auto_dir }}/{{ lookup('env','ANSIBLE_LOG_PATH') }}; export PACKER_CACHE_DIR={{ auto_dir }}/../packer_cache; /usr/bin/packer build {{ role_path }}/files/{{ vm.name }}-builder.json; exit ${?} )
+      register: deploy_ubuntuiso
+      environment:
+        http_proxy: ''
+        https_proxy: ''
+      throttle: "{{ 5 if hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['deptype'] == 'h' else 0 }}"
+      delegate_to: localhost
+    - name: disable VM building
+      set_fact:
+        build_vm: false
+  rescue:
+    - include_tasks: task_delete_vm.yml
+  when: build_vm
+  tags: vm_creation

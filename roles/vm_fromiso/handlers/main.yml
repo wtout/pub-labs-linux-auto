@@ -12,8 +12,13 @@
   ansible.builtin.shell: |
     for BUS in /sys/class/scsi_disk/*/device/rescan; do echo 1 > ${BUS}; done
     echo -e "d\n3\nn\np\n3\n\n\nw\n" | fdisk /dev/sda
+    echo -e "d\n3\nn\n3\n\n\nw\n" | fdisk /dev/sda
     partprobe
+    {% if build.version.os_iso|lower is search('ubuntu') %}
+    resize2fs $(df | grep ' /$' | awk '{print $1}')
+    {% else %}
     xfs_growfs $(grep ' / ' /etc/fstab | awk '{print $2}')
+    {% endif %}
   become: "{{ true if ansible_user != 'root' else false }}"
   tags: vm_creation
 
@@ -26,6 +31,7 @@
 
 - name: expand disk1
   ansible.builtin.shell: |
+    FSTYPE='{% if build.version.os_iso|lower is search('ubuntu') %}ext4{% else %}xfs{% endif %}'
     mp1=$(df -h | grep sdb1 | awk '{print $NF}')
     umount ${mp1}
     {{ 'sleep 2' if build.version.os_iso|lower is search('centos') else '' }}
@@ -34,10 +40,14 @@
     parted -s /dev/sdb resizepart 1 100%
     {{ 'sleep 2' if build.version.os_iso|lower is search('centos') else '' }}
     disk1_uuid=$(blkid | grep sdb1 | awk '{print $2}' | sed 's|"||g')
-    sed -i "s|^\(.*${disk1_uuid}\) /[[:alnum:]]* xfs|\1 {{ vm.disk1_mount }} xfs|" /etc/fstab
+    sed -i "s|^\(.*${disk1_uuid}\) /[[:alnum:]]* ${FSTYPE}|\1 {{ vm.disk1_mount }} ${FSTYPE}|" /etc/fstab
     {{ 'sleep 2' if build.version.os_iso|lower is search('centos') else '' }}
     mount -a
+    {% if build.version.os_iso|lower is search('ubuntu') %}
+    resize2fs {{ vm.disk1_mount }}
+    {% else %}
     xfs_growfs -d {{ vm.disk1_mount }}
+    {% endif %}
   become: "{{ true if ansible_user != 'root' else false }}"
   tags: vm_creation
 
@@ -51,7 +61,7 @@
 
 - name: create disk1 filesystem
   ansible.builtin.filesystem:
-    fstype: xfs
+    fstype: "{{ 'ext4' if build.version.os_iso|lower is search('ubuntu') else 'xfs' }}"
     device: /dev/sdb1
   become: "{{ true if ansible_user != 'root' else false }}"
   notify: get disk1 UUID
@@ -68,8 +78,8 @@
 - name: set disk1 mount points
   ansible.posix.mount:
     name: "{{ vm.disk1_mount }}"
-    src: "{{ reg_disk1_uuid.stdout }}"
-    fstype: xfs
+    src: "{{ '/dev/disk/by-uuid/' + reg_disk1_uuid.stdout|replace('UUID=','') else reg_disk1_uuid.stdout }}"
+    fstype: "{{ 'ext4' if build.version.os_iso|lower is search('ubuntu') else 'xfs' }}"
     opts: defaults
     state: mounted
     dump: '1'
@@ -90,6 +100,7 @@
 
 - name: expand disk2
   ansible.builtin.shell: |
+    FSTYPE='{% if build.version.os_iso|lower is search('ubuntu') %}ext4{% else %}xfs{% endif %}'
     mp2=$(df -h | grep sdc1 | awk '{print $NF}')
     umount ${mp2}
     {{ 'sleep 2' if build.version.os_iso|lower is search('centos') else '' }}
@@ -98,10 +109,14 @@
     parted -s /dev/sdc resizepart 1 100%
     {{ 'sleep 2' if build.version.os_iso|lower is search('centos') else '' }}
     disk2_uuid=$(blkid | grep sdc1 | awk '{print $2}' | sed 's|"||g')
-    sed -i "s|^\(.*${disk2_uuid}\) /[[:alnum:]]* xfs|\1 {{ vm.disk2_mount }} xfs|" /etc/fstab
+    sed -i "s|^\(.*${disk2_uuid}\) /[[:alnum:]]* ${FSTYPE}|\1 {{ vm.disk2_mount }} ${FSTYPE}|" /etc/fstab
     {{ 'sleep 2' if build.version.os_iso|lower is search('centos') else '' }}
     mount -a
+    {% if build.version.os_iso|lower is search('ubuntu') %}
+    resize2fs {{ vm.disk2_mount }}
+    {% else %}
     xfs_growfs -d {{ vm.disk2_mount }}
+    {% endif %}
   become: "{{ true if ansible_user != 'root' else false }}"
   tags: vm_creation
 
@@ -115,7 +130,7 @@
 
 - name: create disk2 filesystem
   ansible.builtin.filesystem:
-    fstype: xfs
+    fstype: "{{ 'ext4' if build.version.os_iso|lower is search('ubuntu') else 'xfs' }}"
     device: /dev/sdc1
   become: "{{ true if ansible_user != 'root' else false }}"
   notify: get disk2 UUID
@@ -132,8 +147,8 @@
 - name: set disk2 mount points
   ansible.posix.mount:
     name: "{{ vm.disk2_mount }}"
-    src: "{{ reg_disk2_uuid.stdout }}"
-    fstype: xfs
+    src: "{{ '/dev/disk/by-uuid/' + reg_disk2_uuid.stdout|replace('UUID=','') else reg_disk2_uuid.stdout }}"
+    fstype: "{{ 'ext4' if build.version.os_iso|lower is search('ubuntu') else 'xfs' }}"
     opts: defaults
     state: mounted
     dump: '1'
@@ -154,6 +169,7 @@
 
 - name: expand disk3
   ansible.builtin.shell: |
+    FSTYPE='{% if build.version.os_iso|lower is search('ubuntu') %}ext4{% else %}xfs{% endif %}'
     mp3=$(df -h | grep sdd1 | awk '{print $NF}')
     umount ${mp3}
     {{ 'sleep 2' if build.version.os_iso|lower is search('centos') else '' }}
@@ -162,10 +178,14 @@
     parted -s /dev/sdd resizepart 1 100%
     {{ 'sleep 2' if build.version.os_iso|lower is search('centos') else '' }}
     disk3_uuid=$(blkid | grep sdd1 | awk '{print $2}' | sed 's|"||g')
-    sed -i "s|^\(.*${disk3_uuid}\) /[[:alnum:]]* xfs|\1 {{ vm.disk3_mount }} xfs|" /etc/fstab
+    sed -i "s|^\(.*${disk3_uuid}\) /[[:alnum:]]* ${FSTYPE}|\1 {{ vm.disk3_mount }} ${FSTYPE}|" /etc/fstab
     {{ 'sleep 2' if build.version.os_iso|lower is search('centos') else '' }}
     mount -a
+    {% if build.version.os_iso|lower is search('ubuntu') %}
+    resize2fs {{ vm.disk3_mount }}
+    {% else %}
     xfs_growfs -d {{ vm.disk3_mount }}
+    {% endif %}
   become: "{{ true if ansible_user != 'root' else false }}"
   tags: vm_creation
 
@@ -179,7 +199,7 @@
 
 - name: create disk3 filesystem
   ansible.builtin.filesystem:
-    fstype: xfs
+    fstype: "{{ 'ext4' if build.version.os_iso|lower is search('ubuntu') else 'xfs' }}"
     device: /dev/sdd1
   become: "{{ true if ansible_user != 'root' else false }}"
   notify: get disk3 UUID
@@ -196,8 +216,8 @@
 - name: set disk3 mount points
   ansible.posix.mount:
     name: "{{ vm.disk3_mount }}"
-    src: "{{ reg_disk3_uuid.stdout }}"
-    fstype: xfs
+    src: "{{ '/dev/disk/by-uuid/' + reg_disk3_uuid.stdout|replace('UUID=','') else reg_disk3_uuid.stdout }}"
+    fstype: "{{ 'ext4' if build.version.os_iso|lower is search('ubuntu') else 'xfs' }}"
     opts: defaults
     state: mounted
     dump: '1'

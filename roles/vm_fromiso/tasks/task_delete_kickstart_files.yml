@@ -1,10 +1,6 @@
 ---
 # Tasks to delete the kickstart files from vsphere and locally
 - block:
-  - include_tasks: task_poweroff_vm.yml
-  - include_tasks: task_disconnect_cdrom.yml
-  - include_tasks: task_poweron_vm.yml
-
   - block:
     - name: check existing VM reachable
       ansible.builtin.command: ping {{ ansible_host }} -c 1

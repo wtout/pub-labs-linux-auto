@@ -39,7 +39,7 @@
       disk1_unit_number: "{{ (disk0_unit_number|int + 1) }}"
       disk1_size_kb: "{{ (vm.disk1|float * 1024|pow(2))|int }}"
       disk1_datastore: "{{ disk0_datastore }}"
-      disk1_add: true
+      disk1_add: 'true'
     when:
       - disk_info.guest_disk_info | dict2items | length < 2
       - vm.disk1 is defined
@@ -122,6 +122,10 @@
     when:
       - vm.disk0 is defined
       - vm.disk0|float > 0
+  - debug:
+      msg: "disk1_add: {{ disk1_add }}"
+  - ansible.builtin.wait_for:
+      timeout: 300
   - name: Update VM Disk1 settings
     community.vmware.vmware_guest_disk:
       hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
@@ -140,7 +144,7 @@
       validate_certs: no
     register: vmguest_disk1
     until: vmguest_disk1 is succeeded
-    notify: "{{ 'add disk1' if disk1_add|default(false) else 'expand disk1' }}"
+    notify: "{{ 'add disk1' if disk1_add|default(false)|bool else 'expand disk1' }}"
     when:
       - vm.disk1 is defined
       - vm.disk1|float > 0
