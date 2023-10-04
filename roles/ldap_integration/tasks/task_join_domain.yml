@@ -19,9 +19,13 @@
     loop_control:
       loop_var: line_item
     notify: restart sssd
+  - name: get the Linux distribution
+    ansible.builtin.setup:
+      filter:
+        - 'distribution'
   - name: check if docker or podman-docker is installed
     ansible.builtin.shell: |
-      rpm -qa | grep docker
+      {% if ansible_facts.distribution == 'Ubuntu' %}dpkg -l{% else %}rpm -qa{% endif %} | grep docker
     register: reg_docker_present
     check_mode: no
     ignore_errors: yes
@@ -42,10 +46,6 @@
         validate: /usr/sbin/visudo -cf %s
     become: "{{ true if ansible_user != 'root' else false }}"
     when: reg_docker_present.stdout is search('docker')
-  - name: get the Linux distribution
-    ansible.builtin.setup:
-      filter:
-        - 'distribution'
   - block:
     - name: Add ad_site to /etc/sssd/sssd.conf
       ansible.builtin.lineinfile:
@@ -79,6 +79,12 @@
     become: "{{ true if ansible_user != 'root' else false }}"
     when:
       - ansible_facts.distribution == 'CentOS'
+  - block:
+    - name: Enable automatic home directory creation
+      ansible.builtin.command: |
+        pam-auth-update --enable mkhomedir
+    when:
+      - ansible_facts.distribution == 'Ubuntu'
   rescue:
   - ansible.builtin.debug:
       msg:

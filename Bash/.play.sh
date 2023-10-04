@@ -41,7 +41,7 @@ function check_deffile() {
 
 function get_os() {
 	local MYRELEASE
-	MYRELEASE=$(grep _MANTISBT_PROJECT= /etc/os-release|cut -d '"' -f2)
+	MYRELEASE=$(grep ^NAME= /etc/os-release|cut -d '"' -f2)
 	if [[ "${MYRELEASE}" != "" ]]	
 	then
 		echo ${MYRELEASE}
@@ -86,7 +86,7 @@ function check_docker_login() {
 	MYDOMAIN=$(echo ${CONTAINERREPO}|cut -d '/' -f1)
 	MYRELEASE=$(get_os)
 	case ${MYRELEASE} in
-		CentOS-7)
+		CentOS*)
 			MYJSONFILE=${AUTHFILE}
 			;;
 		AlmaLinux*)
@@ -123,7 +123,7 @@ function docker_cmd() {
 	local MYRELEASE
 	MYRELEASE=$(get_os)
 	case ${MYRELEASE} in
-		CentOS-7)
+		CentOS*)
 			if [[ -f /etc/systemd/system/docker@.service ]]
 			then
 				echo "docker -H unix:///var/run/docker-$(whoami).sock"
@@ -177,7 +177,7 @@ function start_container() {
 		then
 			$(docker_cmd) run --rm -e MYPROXY=${PROXY_ADDRESS} -e MYHOME=${HOME} -e MYHOSTNAME=$(hostname) -e MYCONTAINERNAME=${CONTAINERNAME} -e MYIP=$(get_host_ip) --user ansible -w ${CONTAINERWD} -v /data:/data:z -v /tmp:/tmp:z -v ${PWD}:${CONTAINERWD}:z --name ${CONTAINERNAME} -it -d --entrypoint /bin/bash ${CONTAINERREPO}:${ANSIBLE_VERSION}
 		else
-			$(docker_cmd) run --rm -e ANSIBLE_LOG_PATH=${ANSIBLE_LOG_PATH} -e ANSIBLE_FORKS=${NUM_HOSTSINPLAY} -e MYPROXY=${PROXY_ADDRESS} -e MYHOME=${HOME} -e MYHOSTNAME=$(hostname) -e MYCONTAINERNAME=${CONTAINERNAME} -e MYIP=$(get_host_ip) --user ansible -w ${CONTAINERWD} -v /data:/data:z -v /tmp:/tmp:z -v ${HOME}/.ssh:/home/ansible/.ssh:z -v ${PWD}:${CONTAINERWD}:z --name ${CONTAINERNAME} -it -d --entrypoint /bin/bash ${CONTAINERREPO}:${ANSIBLE_VERSION}
+			$(docker_cmd) run --rm -e ANSIBLE_LOG_PATH=${ANSIBLE_LOG_PATH} -e ANSIBLE_FORKS=${NUM_HOSTSINPLAY} -e MYPROXY=${PROXY_ADDRESS} -e MYHOME=${HOME} -e MYHOSTNAME=$(hostname) -e MYCONTAINERNAME=${CONTAINERNAME} -e MYIP=$(get_host_ip) -e MYHOSTOS=$(get_os) --user ansible -w ${CONTAINERWD} -v /data:/data:z -v /tmp:/tmp:z -v ${HOME}/.ssh:/home/ansible/.ssh:z -v ${PWD}:${CONTAINERWD}:z --name ${CONTAINERNAME} -it -d --entrypoint /bin/bash ${CONTAINERREPO}:${ANSIBLE_VERSION}
 		fi
 		[[ ${debug} == 1 ]] && set -x
 		[[ $(check_container; echo "${?}") -ne 0 ]] && echo "Unable to start container ${CONTAINERNAME}" && exit 1

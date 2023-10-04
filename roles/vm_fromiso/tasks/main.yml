@@ -4,6 +4,21 @@
   - include_tasks: task_delete_ssh_key.yml
   - include_tasks: task_define_folder_name.yml
   - block:
+    - name: check if VM exists
+      community.vmware.vmware_guest_info:
+        hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
+        username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
+        password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
+        datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
+        name: "{{ vm.name }}"
+        schema: vsphere
+        validate_certs: no
+      register: reg_vm_exists
+      no_log: yes
+      ignore_errors: true
+      delegate_to: localhost
+    - include_tasks: task_poweron_vm.yml
+      when: reg_vm_exists is succeeded
     - include_tasks: task_check_con_creds.yml
     - include_tasks: task_create_vms.yml
     when: create_vms_iso | default(false) | bool

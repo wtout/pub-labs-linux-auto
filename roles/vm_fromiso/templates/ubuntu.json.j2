@@ -14,9 +14,8 @@
         "<wait1s>",
         "<enter>",
         "<wait1s>",
-        "<tab>",
-        "<tab>",
-        "<tab>",
+        "<up>",
+        "<up>",
         "<enter>",
         "<wait1s>",
         "<down>",
@@ -56,11 +55,27 @@
         "<wait1s>",
         "<down>",
         "<down>",
-        "<down>",
+        "<enter>",
         "<down>",
         "<down>",
         "<enter>",
         "<wait1s>",
+        "<up>",
+        "<enter>",
+        "<down>",
+        "<enter>",
+        "<wait1s>",
+        "<down>",
+        "<enter>",
+        "<down>",
+        "<enter>",
+        "<down>",
+        "<down>",
+        "<enter>",
+        "<down>",
+        "<down>",
+        "<down>",
+        "<down>",
         "<enter>",
         "<wait1s>",
         "<down>",
@@ -86,7 +101,7 @@
         "<enter>",
         "<wait1s>",
         "<enter>",
-        "<wait300s>",
+        "<wait360s>",
         "<down>",
         "<down>",
         "<enter>",
@@ -111,12 +126,17 @@
         "useradd -p $(openssl passwd -6 '{{ vm_app_pass }}') {{ vm_app_user }}; passwd --expire {{ vm_app_user }}",
         "<enter>",
         "<wait1s>",
+        "echo -e 'Host_Alias  {{ vm_admin_user | upper }}_SUDO_HOSTS = ALL\\nRunas_Alias {{ vm_admin_user | upper }}_SUDO_RUNAS = ALL\\nCmnd_Alias  {{ vm_admin_user | upper }}_SUDO_CMNDS = ALL\\nCmnd_Alias  {{ vm_admin_user | upper }}_SHELLS = /bin/bash, /sbin/nologin, /usr/bin/bash, /usr/sbin/nologin, /bin/csh, /bin/zsh, /bin/tcsh, /bin/ksh, /usr/bin/ksh, /usr/bin/rsh, /bin/chsh, /usr/bin/chsh\\n%{{ vm_admin_user }} {{ vm_admin_user | upper }}_SUDO_HOSTS = ({{ vm_admin_user | upper }}_SUDO_RUNAS) {{ vm_admin_user | upper }}_SUDO_CMNDS, !{{ vm_admin_user | upper }}_SHELLS\\n' > /etc/sudoers.d/{{ vm_admin_user }}",
+        "<enter>",
         "echo -e 'Host_Alias  {{ vm_app_user | upper }}_SUDO_HOSTS = ALL\\nRunas_Alias {{ vm_app_user | upper }}_SUDO_RUNAS = ALL\\nCmnd_Alias  {{ vm_app_user | upper }}_SUDO_CMNDS = ALL\\nCmnd_Alias  {{ vm_app_user | upper }}_SHELLS = /bin/bash, /sbin/nologin, /usr/bin/bash, /usr/sbin/nologin, /bin/csh, /bin/zsh, /bin/tcsh, /bin/ksh, /usr/bin/ksh, /usr/bin/rsh, /bin/chsh, /usr/bin/chsh\\nCmnd_Alias  {{ vm_app_user | upper }}_RP = /usr/bin/passwd root, /usr/bin/passwd paelabsadmin,  /usr/sbin/usermod, /usr/bin/su\\nCmnd_Alias  {{ vm_app_user | upper }}_EXEC = /bin/vi, /bin/vim, /bin/more, /bin/less, /usr/bin/vi, /usr/bin/vim, /usr/bin/more, /usr/bin/less\\n%{{ vm_app_user }} {{ vm_app_user | upper }}_SUDO_HOSTS = ({{ vm_app_user | upper }}_SUDO_RUNAS) NOPASSWD: {{ vm_app_user | upper }}_SUDO_CMNDS, !{{ vm_app_user | upper }}_RP, !{{ vm_app_user | upper }}_SHELLS, ({{ vm_app_user | upper }}_SUDO_RUNAS) NOEXEC: {{ vm_app_user | upper }}_EXEC\\n%role\\ -\\ linux\\ l4\\ users@cisco-cms.com {{ vm_app_user | upper }}_SUDO_HOSTS = ({{ vm_app_user | upper }}_SUDO_RUNAS) NOPASSWD: {{ vm_app_user | upper }}_SUDO_CMNDS, !{{ vm_app_user | upper }}_SHELLS\\n' > /etc/sudoers.d/{{ vm_app_user }}",
+        "<enter>",
+        "<wait1s>",
+        "echo -e '\\nblacklist {\\n    device {\\n        vendor {{ '\\"' }}VMware{{ '\\"' }}\\n        product {{ '\\"' }}Virtual disk{{ '\\"' }}\\n    }\\n}' >> /etc/multipath.conf",
         "<enter>",
         "<wait1s>",
 {%- if proxy_address is defined and proxy_address != '' -%}
 {%- block profile_config -%}
-        "rm /etc/systemd/system/snapd.service.d/snap_proxy.conf; echo -e 'unset {http,https,ftp,no}_proxy; unset {HTTP,HTTPS,FTP,NO}_PROXY; unset proxy_address\\nproxy_address='{{ proxy_address }}'\\nexport http_proxy=\\${proxy_address}\\nexport https_proxy=\\${proxy_address}\\nexport ftp_proxy=\\${proxy_address}\\nexport no_proxy='.cisco.com,.cisco-pae.com,.staging.cisco-cms.com,.cisco-cms.com,172.19.0.0/16,172.23.0.0/16,172.30.0.0/16'\\n' > /etc/profile.d/setproxy.sh; source /etc/profile.d/setproxy.sh",
+        "rm /etc/systemd/system/snapd.service.d/snap_proxy.conf; echo -e 'unset {http,https,ftp,no}_proxy; unset {HTTP,HTTPS,FTP,NO}_PROXY; unset proxy_address\\nproxy_address='{{ proxy_address }}'\\nexport http_proxy=${proxy_address}\\nexport https_proxy=${proxy_address}\\nexport ftp_proxy=${proxy_address}\\nexport no_proxy='.cisco.com,.cisco-pae.com,.staging.cisco-cms.com,.cisco-cms.com,172.19.0.0/16,172.23.0.0/16,172.30.0.0/16'\\n' > /etc/profile.d/setproxy.sh; source /etc/profile.d/setproxy.sh",
         "<enter>",
         "<wait1s>",
         "echo -e 'Acquire::http::Proxy {{ '\\"' }}{{ proxy_address }}{{ '\\"' }};\\nAcquire::https::Proxy {{ '\\"' }}{{ proxy_address }}{{ '\\"' }};\\n' > /etc/apt/apt.conf.d/proxy.conf",
@@ -130,10 +150,10 @@
         "echo 'SSHD: 172.0.0.0/255.0.0.0' >> /etc/hosts.allow; echo 'snmpd: 172.0.0.0/255.0.0.0' >> /etc/hosts.allow",
         "<enter>",
         "<wait1s>",
-        "export DEBIAN_FRONTEND=noninteractive; apt-get update; apt-get -yqq install chrony iptables aide snmpd iptables rsyslog expect screen realmd sssd sssd-tools libnss-sss libpam-sss adcli samba-common-bin oddjob oddjob-mkhomedir packagekit",
+        "export DEBIAN_FRONTEND=noninteractive; apt-get update; apt-get -yqq install chrony iptables aide snmpd iptables rsyslog expect screen realmd sssd sssd-tools libnss-sss libpam-sss adcli samba-common-bin oddjob oddjob-mkhomedir packagekit podman",
         "<enter>",
-        "<wait180s>",
-        "sed -i '/^server.*iburst$/d' /etc/chrony/chrony.conf; sed -i 's/^\\(# Please consider.*\\)$/\\1\\n{% if 'dr' in group_names %} {%- if sysconfig.secondary.ntp_server|type_debug == 'list' %} {%- for line in sysconfig.secondary.ntp_server|join(',')|split(', ') %} {{- 'server ' + line + ' iburst\\n' -}} {% endfor -%} {% else %} {{- 'server ' + sysconfig.secondary.ntp_server + ' iburst\\n' -}} {% endif -%} {% else %} {%- if sysconfig.primary.ntp_server|type_debug == 'list' %} {%- for line in sysconfig.primary.ntp_server|join(',')|split(', ') %} {{- 'server ' + line + ' iburst\\n' -}} {% endfor -%} {% else %} {{- 'server ' + sysconfig.primary.ntp_server + ' iburst\\n' -}} {% endif -%} {% endif -%}/' /etc/chrony/chrony.conf",
+        "<wait240s>",
+        "sed -i '/^pool.*iburst.*$/d' /etc/chrony/chrony.conf; sed -i 's/^\\(# See http.*\\)$/\\1\\n{% if 'dr' in group_names %} {%- if sysconfig.secondary.ntp_server|type_debug == 'list' %} {%- for line in sysconfig.secondary.ntp_server|join(',')|split(', ') %} {{- 'server ' + line + ' iburst\\n' -}} {% endfor -%} {% else %} {{- 'server ' + sysconfig.secondary.ntp_server + ' iburst\\n' -}} {% endif -%} {% else %} {%- if sysconfig.primary.ntp_server|type_debug == 'list' %} {%- for line in sysconfig.primary.ntp_server|join(',')|split(', ') %} {{- 'server ' + line + ' iburst\\n' -}} {% endfor -%} {% else %} {{- 'server ' + sysconfig.primary.ntp_server + ' iburst\\n' -}} {% endif -%} {% endif -%}/' /etc/chrony/chrony.conf",
         "<enter>",
         "<wait1s>"
       ],
@@ -171,57 +191,12 @@
       "ssh_password": "{{ '{{' }} user `vm-password` {{ '}}' }}",      
       "disk_controller_type": [
         "lsilogic"
-{%- if vm.disk1|int != 0 -%}
-{%- block dskcntlr1 -%}
-,
-        "lsilogic"
-{%- endblock dskcntlr1 %}
-{%- endif %}
-{%- if vm.disk2|int != 0 -%}
-{%- block dskcntlr2 -%}
-,
-        "lsilogic"
-{%- endblock dskcntlr2 %}
-{%- endif %}
-{%- if vm.disk3|int != 0 -%}
-{%- block dskcntlr3 -%}
-,
-        "lsilogic"
-{%- endblock dskcntlr3 %}
-{%- endif %}
       ],
       "storage": [
         {
           "disk_size": "{{ '{{' }} user `vm-disk-size0` {{ '}}' }}",
           "disk_thin_provisioned": "{{ '{{' }} user `vm-thin-provisioning` {{ '}}' }}"
         }
-{%- if vm.disk1|int != 0 -%}
-{%- block disk1 -%}
-,
-        {
-          "disk_size": "{{ '{{' }} user `vm-disk-size1` {{ '}}' }}",
-          "disk_thin_provisioned": "{{ '{{' }} user `vm-thin-provisioning` {{ '}}' }}"
-        }
-{%- endblock disk1 %}
-{%- endif %}
-{%- if vm.disk2|int != 0 -%}
-{%- block disk2 -%}
-,
-        {
-          "disk_size": "{{ '{{' }} user `vm-disk-size2` {{ '}}' }}",
-          "disk_thin_provisioned": "{{ '{{' }} user `vm-thin-provisioning` {{ '}}' }}"
-        }
-{%- endblock disk2 %}
-{%- endif %}
-{%- if vm.disk3|int != 0 -%}
-{%- block disk3 -%}
-,
-        {
-          "disk_size": "{{ '{{' }} user `vm-disk-size3` {{ '}}' }}",
-          "disk_thin_provisioned": "{{ '{{' }} user `vm-thin-provisioning` {{ '}}' }}"
-        }
-{%- endblock disk3 %}
-{%- endif %}
       ],
       "type": "vsphere-iso",
       "username": "{{ '{{' }} user `vsphere-user` {{ '}}' }}",

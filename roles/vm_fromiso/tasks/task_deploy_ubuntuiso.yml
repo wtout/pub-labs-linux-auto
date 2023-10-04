@@ -33,6 +33,7 @@
       until: vm_reachable1 is succeeded
       retries: 5
       delay: 10
+      become: "{{ 'yes' if host_os|lower is search('almalinux') else 'no' }}"
     rescue:
     - block:
       - include_tasks: task_reboot_guest_vm.yml
@@ -43,6 +44,7 @@
         until: vm_reachable2 is succeeded
         retries: 5
         delay: 10
+        become: "{{ 'yes' if host_os|lower is search('almalinux') else 'no' }}"
       rescue:
       - block:
         - name: enable VM building
@@ -60,6 +62,7 @@
           until: vm_reachable3 is succeeded
           retries: 5
           delay: 10
+          become: "{{ 'yes' if host_os|lower is search('almalinux') else 'no' }}"
         rescue:
           - include_tasks: task_reboot_guest_vm.yml
           - name: recheck VM reachable
@@ -69,6 +72,7 @@
             until: vm_reachable4 is succeeded
             retries: 5
             delay: 10
+            become: "{{ 'yes' if host_os|lower is search('almalinux') else 'no' }}"
     - name: Wait for port 22 to become open and contain "OpenSSH"
       wait_for:
         port: 22

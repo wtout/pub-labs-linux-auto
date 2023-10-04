@@ -1,22 +1,36 @@
 ---
 # Tasks to update disks with self healing mechanism
-- name: Update disks
-  block:
-    - include_tasks: task_update_disks.yml
-  rescue:
-    - include_tasks: task_delete_ssh_key.yml
-    - include_tasks: task_delete_vm.yml
-    - include_tasks: task_deploy_iso.yml
-    - include_tasks: task_delete_gtw_nic1_self_healing.yml
-    - include_tasks: task_update_disks.yml
-  always:
-    - name: define disk_rebuild
-      ansible.builtin.set_fact:
-        disk_rebuild: "{{ vmguest_disk0|default({'failed': false}) is failed or vmguest_disk1|default({'failed': false}) is failed or vmguest_disk2|default({'failed': false}) is failed or vmguest_disk3|default({'failed': false}) is failed }}"
-    - name: check if rebuild is still required
-      ansible.builtin.assert:
-        that:
-          - not disk_rebuild|default(false)
-        success_msg: 'Disks updated successfully'
-        fail_msg: 'Unable to update the disks successfully'
+- block:
+  - name: check VM reachable
+    command: ping {{ netconfig.nic1.ipaddress }} -c 1
+    register: vm_reachable1
+    ignore_unreachable: true
+    check_mode: no
+    until: vm_reachable1 is succeeded
+    retries: 5
+    delay: 10
+    delegate_to: localhost
+    become: "{{ 'yes' if host_os|lower is search('almalinux') else 'no' }}"
+  - name: Update disks
+    block:
+      - include_tasks: task_update_disks.yml
+    rescue:
+      - include_tasks: task_delete_ssh_key.yml
+      - include_tasks: task_delete_vm.yml
+      - include_tasks: task_deploy_iso.yml
+        when: build.version.os_iso|lower is not search('ubuntu')
+      - include_tasks: task_deploy_ubuntuiso.yml
+        when: build.version.os_iso|lower is search('ubuntu')
+      - include_tasks: task_delete_gtw_nic1_self_healing.yml
+      - include_tasks: task_update_disks.yml
+    always:
+      - name: define disk_rebuild
+        ansible.builtin.set_fact:
+          disk_rebuild: "{{ vmguest_disk0|default({'failed': false}) is failed or vmguest_disk1|default({'failed': false}) is failed or vmguest_disk2|default({'failed': false}) is failed or vmguest_disk3|default({'failed': false}) is failed }}"
+      - name: check if rebuild is still required
+        ansible.builtin.assert:
+          that:
+            - not disk_rebuild|default(false)
+          success_msg: 'Disks updated successfully'
+          fail_msg: 'Unable to update the disks successfully'
   tags: vm_creation

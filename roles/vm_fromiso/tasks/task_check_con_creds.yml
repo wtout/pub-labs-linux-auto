@@ -1,5 +1,5 @@
 ---
-# tasks to check connectivity and credentials for non EM7 hosts
+# tasks to check connectivity and credentials for hosts
 - name: check connection credentials
   block:
     - name: check VM reachable
@@ -7,7 +7,12 @@
       register: vcr_vm_reachable
       become: "{{ 'yes' if build.version.os_iso|lower is search('almalinux') else 'no' }}"
       check_mode: no
+      ignore_unreachable:  true
+      until: vcr_vm_reachable is succeeded
+      retries: "{{ 5 if reg_vm_exists is succeeded else 1 }}"
+      delay: "{{ 10 if reg_vm_exists is succeeded else 3 }}"
       delegate_to: localhost
+      become: "{{ 'yes' if host_os|lower is search('almalinux') else 'no' }}"
     - name: check original credentials
       block:
         - name: check VM credentials
@@ -26,7 +31,7 @@
           ansible.builtin.wait_for_connection:
             timeout: 10
   rescue:
-    - name: check service user credentials
+    - name: check user credentials
       block:
         - name: switch to {{ vm_admin_user }} user
           ansible.builtin.set_fact:
@@ -55,4 +60,5 @@
             ansible_ssh_pass: "{{ credentials.password }}"
             ansible_become_pass: "{{ credentials.password }}"
           no_log: true
+          when: build.version.os_iso|lower is not search('ubuntu')
   tags: vm_creation
