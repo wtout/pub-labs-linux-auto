@@ -5,15 +5,15 @@
     - block:
       - name: Add primary DNS records
         ansible.builtin.shell: |
-          {% if hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] is search ('PAE-HX-DC') %}
+          {% if hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] is search ('-HX-DC') %}
           sshpass -p {{ svc_password }} ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -T -l {{ svc_username }} {{ lookup('env','MYIP') }} <<EOF
           {% endif %}
-          nsupdate {% if hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] is search ('PAE-HX-DC') %}-g {% endif %}<<EOC
+          nsupdate {% if hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] is search ('-HX-DC') %}-g {% endif %}<<EOC
           server {{ sysconfig.primary.dns_servers[0] }}
           update add {{ vm.name }}.{{ sysconfig.primary.domain_name }} 86400 A {{ netconfig.nic1.ipaddress if vm.name is not search('csr') else netconfig.nic3.ipaddress }}
           send
           EOC
-          {% if hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] is search ('PAE-HX-DC') %}
+          {% if hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] is search ('-HX-DC') %}
           EOF
           {% endif %}
         register: reg_pdr
@@ -30,16 +30,16 @@
     - block:
       - name: Add primary reverse DNS records
         ansible.builtin.shell: |
-          {% if hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] is search ('PAE-HX-DC') %}
+          {% if hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] is search ('-HX-DC') %}
           sshpass -p {{ svc_password }} ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -T -l {{ svc_username }} {{ lookup('env','MYIP') }} <<EOF
           {% endif %}
-          nsupdate {% if hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] is search ('PAE-HX-DC') %}-g {% endif %}<<EOC
+          nsupdate {% if hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] is search ('-HX-DC') %}-g {% endif %}<<EOC
           server {{ sysconfig.primary.dns_servers[0] }}
           zone {{ (netconfig.nic1.ipaddress if vm.name is not search('csr') else netconfig.nic3.ipaddress).split('.')[:-1] | reverse | join('.') + '.in-addr.arpa' }}
           update add {{ (netconfig.nic1.ipaddress if vm.name is not search('csr') else netconfig.nic3.ipaddress).split('.') | reverse | join('.') + '.in-addr.arpa' }} 86400 PTR {{ vm.name }}.{{ sysconfig.primary.domain_name }}
           send
           EOC
-          {% if hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] is search ('PAE-HX-DC') %}
+          {% if hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] is search ('-HX-DC') %}
           EOF
           {% endif %}
         register: reg_prdr
@@ -53,22 +53,22 @@
       always:
       - ansible.builtin.assert:
           that: reg_prdr is succeeded
-        when: hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] is search ('PAE-HX-DC')
+        when: hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] is search ('-HX-DC')
     when:
       - "'stack' in group_names"
   - block:
     - block:
       - name: Add secondary DNS records
         ansible.builtin.shell: |
-          {% if hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] is search ('PAE-HX-DC') %}
+          {% if hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] is search ('-HX-DC') %}
           sshpass -p {{ svc_password }} ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -T -l {{ svc_username }} {{ lookup('env','MYIP') }} <<EOF
           {% endif %}
-          nsupdate {% if hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] is search ('PAE-HX-DC') %}-g {% endif %}<<EOC
+          nsupdate {% if hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] is search ('-HX-DC') %}-g {% endif %}<<EOC
           server {{ sysconfig.secondary.dns_servers[0] }}
           update add {{ vm.name }}.{{ sysconfig.secondary.domain_name }} 86400 A {{ netconfig.nic1.ipaddress if vm.name is not search('csr') else netconfig.nic3.ipaddress }}
           send
           EOC
-          {% if hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] is search ('PAE-HX-DC') %}
+          {% if hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] is search ('-HX-DC') %}
           EOF
           {% endif %}
         register: reg_sdr
@@ -85,16 +85,16 @@
     - block:
       - name: Add secondary reverse DNS records
         ansible.builtin.shell: |
-          {% if hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] is search ('PAE-HX-DC') %}
+          {% if hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] is search ('-HX-DC') %}
           sshpass -p {{ svc_password }} ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -T -l {{ svc_username }} {{ lookup('env','MYIP') }} <<EOF
           {% endif %}
-          nsupdate {% if hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] is search ('PAE-HX-DC') %}-g {% endif %}<<EOC
+          nsupdate {% if hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] is search ('-HX-DC') %}-g {% endif %}<<EOC
           server {{ sysconfig.secondary.dns_servers[0] }}
           zone {{ (netconfig.nic1.ipaddress if vm.name is not search('csr') else netconfig.nic3.ipaddress).split('.')[:-1] | reverse | join('.') + '.in-addr.arpa' }}
           update add {{ (netconfig.nic1.ipaddress if vm.name is not search('csr') else netconfig.nic3.ipaddress).split('.') | reverse | join('.') + '.in-addr.arpa' }} 86400 PTR {{ vm.name }}.{{ sysconfig.secondary.domain_name }}
           send
           EOC
-          {% if hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] is search ('PAE-HX-DC') %}
+          {% if hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] is search ('-HX-DC') %}
           EOF
           {% endif %}
         register: reg_srdr
@@ -108,7 +108,7 @@
       always:
       - ansible.builtin.assert:
           that: reg_srdr is succeeded
-        when: hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] is search ('PAE-HX-DC')
+        when: hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] is search ('-HX-DC')
     when:
       - build.disaster_recovery
       - "'dr' in group_names"
