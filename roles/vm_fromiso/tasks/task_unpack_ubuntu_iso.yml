@@ -1,0 +1,21 @@
+---
+# Tasks to unpack Ubuntu ISO file
+- block:
+  - name: Create temporary directory structure
+    ansible.builtin.file:
+      path: "{{ role_path }}/files/{{ vm.name }}-tmpdir/source_files/server"
+      state: directory
+      mode: 0777
+  - name: unpack ISO
+    ansible.builtin.shell: |
+      7z -y x {{ auto_dir }}/{{ iso_dir }}/{{ build.version.os_iso }} -osource_files
+      chmod -R go+rwx source_files
+    args:
+      chdir: "{{ role_path }}/files/{{ vm.name }}-tmpdir"
+  - name: move '[BOOT]' directory to ../BOOT
+    ansible.builtin.shell: |
+      rm -rf ../BOOT; mv -f \[BOOT\] ../BOOT
+    args:
+      chdir: "{{ role_path }}/files/{{ vm.name }}-tmpdir/source_files"
+  delegate_to: localhost
+  tags: vm_creation

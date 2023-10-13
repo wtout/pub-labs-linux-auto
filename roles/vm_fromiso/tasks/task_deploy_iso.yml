@@ -9,7 +9,7 @@
       datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
       cluster: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['cluster'] }}"
       folder: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] + '/vm' + (('' if fldr_name is regex('^/') else '/') + fldr_name if fldr_name != '' else '') }}"
-      guest_id: "{{ ('RHEL' if build.version.os_iso|lower is search('almalinux') else build.version.os_iso|split('-')|first|lower) + (build.version.os_iso|split('-'))[1]|split('.')|first }}_64Guest"
+      guest_id: "{{ ('rhel' if build.version.os_iso|lower is search('almalinux') else build.version.os_iso|split('-')|first|lower) + (((build.version.os_iso|split('-'))[1]|split('.')|first + '_') if build.version.os_iso|lower is search('almalinux|centos') else '') }}64Guest"
       name: "{{ vm.name }}"
       state: poweredon
       validate_certs: no
@@ -27,15 +27,7 @@
         version: 'latest'
       networks: "{{ nics_list }}"
       advanced_settings: "{{ advsets_list }}"
-      cdrom:
-        - type: iso
-          iso_path: "[{{ iso_datastore }}] {{ iso_path }}/{{ iso_installer }}"
-          controller_number: 0
-          unit_number: 0
-        - type: iso
-          iso_path: "[{{ iso_datastore }}] {{ iso_path }}/{{ vm.name }}-kickstart.iso"
-          controller_number: 1
-          unit_number: 0
+      cdrom: "{{ cdrom_list }}"
     register: deploy_iso
     environment:
       http_proxy: ''
@@ -50,9 +42,32 @@
       host: "{{ netconfig.nic1.ipaddress if netconfig.nic1.ipaddress != '' else netconfig.nic2.ipaddress }}"
       search_regex: OpenSSH
       delay: 10
-      timeout: 1800
+      timeout: "{{ 180 if build.version.os_iso|lower is search('ubuntu') else 1800 }}"
       sleep: 10
+    register: reg_openssh
     when:
+      - deploy_iso is succeeded
+      - vmguest_info is failed
+  - block:
+    - name: wait for VM creation process to finish
+      ansible.builtin.shell: |
+        sshpass -p {{ ansible_ssh_pass }} ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -T -l {{ ansible_user }} {{ netconfig.nic1.ipaddress if netconfig.nic1.ipaddress != '' else netconfig.nic2.ipaddress }} <<EOF
+        ls /var/log/installer/build.complete
+        EOF
+      register: reg_vm_ready
+      until: reg_vm_ready is succeeded
+      retries: 9
+      delay: 170
+      no_log: yes
+    rescue:
+    - ansible.builtin.debug:
+        msg: "{{ reg_vm_ready|replace(ansible_ssh_pass,'obfuscated') if ansible_ssh_pass != '' else reg_vm_ready }}"
+    always:
+    - ansible.builtin.assert:
+        that: reg_vm_ready is succeeded
+    when:
+      - reg_openssh is succeeded
+      - build.version.os_iso|lower is search('ubuntu')
       - deploy_iso is succeeded
       - vmguest_info is failed
   delegate_to: localhost

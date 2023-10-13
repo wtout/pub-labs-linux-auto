@@ -1,16 +1,24 @@
 ---
 # Tasks to update disks with self healing mechanism
 - block:
-  - name: check VM reachable
-    command: ping {{ netconfig.nic1.ipaddress }} -c 1
-    register: vm_reachable1
-    ignore_unreachable: true
-    check_mode: no
-    until: vm_reachable1 is succeeded
-    retries: 5
-    delay: 10
+  - block:
+    - name: check VM reachable
+      ansible.builtin.shell: |
+        sshpass -p {{ ansible_ssh_pass }} ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -T -l {{ ansible_user }} {{ netconfig.nic1.ipaddress if netconfig.nic1.ipaddress != '' else netconfig.nic2.ipaddress }} <<EOF
+        whoami
+        EOF
+      register: vm_reachable1
+      until: vm_reachable1 is succeeded
+      retries: 3
+      delay: 10
+      no_log: yes
+    rescue:
+    - ansible.builtin.debug:
+        msg: "{{ vm_reachable1|replace(ansible_ssh_pass,'obfuscated') if ansible_ssh_pass != '' else vm_reachable1 }}"
+    always:
+    - ansible.builtin.assert:
+        that: vm_reachable1 is succeeded
     delegate_to: localhost
-    become: "{{ 'yes' if host_os|lower is search('almalinux') else 'no' }}"
   - name: Update disks
     block:
       - include_tasks: task_update_disks.yml

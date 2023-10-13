@@ -16,7 +16,6 @@
       validate_certs: no
     register: datastore_info
     delegate_to: localhost
-    when: host_index|int % 2 != 0 or (host_index|int % 2 == 0 and groups[vm_group][host_index|int - 2] not in ansible_play_hosts)
 
   - block:
     - name: define hosted datastore names
@@ -39,7 +38,6 @@
       when:
         - groups[vm_group][host_index] is defined
         - groups[vm_group][host_index|int + 1] is defined
-    when: host_index|int % 2 != 0 or (host_index|int % 2 == 0 and groups[vm_group][host_index|int - 2] not in ansible_play_hosts)
 
   - name: define hosted datastore for each odd index host
     ansible.builtin.set_fact:

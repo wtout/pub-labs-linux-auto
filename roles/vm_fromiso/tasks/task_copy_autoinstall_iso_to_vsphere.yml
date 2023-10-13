@@ -1,0 +1,42 @@
+---
+# Tasks to copy the ISO file to datastore
+- block:
+  - name: define iso_datastore and iso_path
+    ansible.builtin.set_fact:
+      iso_datastore: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['storage_datastore'] if hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['storage_datastore'] != '' else vm_ds }}"
+      iso_path: "ISO{{ '/' + hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['storage_path'] if hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['storage_path'] != '' else '' }}"
+
+  - name: create a directory on the datastore
+    community.vmware.vsphere_file:
+      hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
+      username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
+      password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
+      datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
+      datastore: "{{ iso_datastore }}"
+      path: "{{ iso_path }}"
+      state: directory
+      validate_certs: false
+    register: ds_folder
+    throttle: 1
+
+  - block:
+    - include_tasks: task_poweroff_vm.yml
+    - name: copy Autoinstall ISO file to vsphere
+      community.vmware.vsphere_copy:
+        hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
+        username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
+        password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
+        datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
+        datastore: "{{ iso_datastore }}"
+        src: "{{ role_path }}/files/{{ vm.name }}-tmpdir/{{ (build.version.os_iso|split('-'))[:2]|join('-') + '-autoinstall.iso' }}"
+        path: "{{ iso_path }}/{{ vm.name }}-autoinstall.iso"
+        validate_certs: false
+      async: 7200
+      poll: 30
+    when: ds_folder is succeeded
+
+  delegate_to: localhost
+  environment:
+    http_proxy: ''
+    https_proxy: ''
+  tags: vm_creation

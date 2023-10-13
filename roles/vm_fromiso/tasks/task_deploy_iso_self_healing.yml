@@ -52,11 +52,34 @@
     ansible.builtin.set_fact:
       advsets_list: "{{ advsets|default([]) }}"
 
+  - name: define cdrom1
+    ansible.builtin.set_fact:
+      cdrom1:
+        - type: iso
+          iso_path: "[{{ iso_datastore }}] {{ iso_path }}/{{ vm.name + '-autoinstall.iso' if build.version.os_iso|lower is search('ubuntu') else iso_installer }}"
+          controller_number: 0
+          unit_number: 0
+  - name: define cdrom2
+    ansible.builtin.set_fact:
+      cdrom2:
+        - type: iso
+          iso_path: "[{{ iso_datastore }}] {{ iso_path }}/{{ vm.name + '-kickstart.iso' }}"
+          controller_number: 1
+          unit_number: 0
+    when: build.version.os_iso|lower is not search('ubuntu')
+  - name: define list of CDROMs
+    ansible.builtin.set_fact:
+      cdrom_list: "{{ cdrom1|default([]) + cdrom2|default([]) }}"
+
   - block:
     - include_tasks: task_deploy_iso.yml
     rescue:
     - include_tasks: task_delete_vm.yml
-    - include_tasks: task_deploy_iso.yml
+    - block:
+      - include_tasks: task_deploy_iso.yml
+      rescue:
+      - include_tasks: task_delete_vm.yml
+      - include_tasks: task_deploy_iso.yml
 
   delegate_to: localhost
   tags: vm_creation

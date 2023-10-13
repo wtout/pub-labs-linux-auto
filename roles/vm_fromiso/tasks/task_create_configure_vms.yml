@@ -7,60 +7,52 @@
 
   - block:
     - block:
+      - include_tasks: task_unpack_ubuntu_iso.yml
+      - include_tasks: task_add_autoinstall_option.yml
+      - include_tasks: task_create_ubuntu_data_files.yml
+      - include_tasks: task_create_ubuntu_autoinstall_iso.yml
+      - include_tasks: task_copy_autoinstall_iso_to_vsphere.yml
+      when: build.version.os_iso|lower is search('ubuntu')
+    - block:
       - include_tasks: task_create_kickstart_iso.yml
       - include_tasks: task_copy_kickstart_iso_to_vsphere.yml
-      - include_tasks: task_deploy_iso_self_healing.yml
-      when:
-        - crecon | default(true) | bool
-        - vcr_vm_reachable is failed
-        - vcr_vm_connection|default({}) is failed
-
-    - include_tasks: task_update_custom_attributes.yml
-    - include_tasks: task_delete_gtw_nic1_self_healing.yml
-    - include_tasks: task_update_disks_self_healing.yml
-    - block:
-      - include_tasks: task_poweroff_vm.yml
-      - include_tasks: task_disconnect_cdrom.yml
-      - include_tasks: task_poweron_vm.yml
-      - include_tasks: task_delete_kickstart_files.yml
-      - include_tasks: task_update_default_route.yml
-      - include_tasks: task_add_gtw2.yml
-      when:
-        - crecon | default(true) | bool
-        - vcr_vm_reachable is failed
-        - vcr_vm_connection|default({}) is failed
-    - block:
-      - name: check disks order
-        ansible.builtin.shell: |
-          df -h | grep /boot | awk '{print $1}'
-        register: reg_boot
-        become: "{{ true if ansible_user != 'root' else false }}"
-      - name: reboot vm
-        ansible.builtin.reboot:
-          post_reboot_delay: 10
-          reboot_timeout: 60
-        when: reg_boot.stdout is not search('sda')
-        become: "{{ true if ansible_user != 'root' else false }}"
-      when:
-        - vmguest_disk0 is changed or vmguest_disk1 is changed or vmguest_disk2 is changed or vmguest_disk3 is changed
-        - disk_info.guest_disk_info | dict2items | length >= 2
+      when: build.version.os_iso|lower is not search('ubuntu')
+    - include_tasks: task_deploy_iso_self_healing.yml
     when:
-      - build.version.os_iso is not search('ubuntu')
+      - crecon | default(true) | bool
+      - vcr_vm_reachable is failed
+      - vcr_vm_connection|default({}) is failed
+
+  - include_tasks: task_update_custom_attributes.yml
+  - include_tasks: task_delete_gtw_nic1_self_healing.yml
+  - include_tasks: task_update_disks_self_healing.yml
   - block:
-    - block:
-      - include_tasks: task_create_packer_builder.yml
-      - include_tasks: task_deploy_ubuntuiso.yml
-      - include_tasks: task_poweroff_vm.yml
-      - include_tasks: task_disconnect_cdrom.yml
-      - include_tasks: task_poweron_vm.yml
-      - include_tasks: task_delete_packer_builder.yml
-      when:
-        - crecon | default(true) | bool
-        - vcr_vm_reachable is failed
-        - vcr_vm_connection|default({}) is failed
-    - include_tasks: task_update_custom_attributes.yml
-    - include_tasks: task_update_disks_self_healing.yml
-    when: build.version.os_iso is search('ubuntu')
+    - include_tasks: task_poweroff_vm.yml
+    - include_tasks: task_disconnect_cdrom.yml
+    - include_tasks: task_poweron_vm.yml
+    - include_tasks: task_delete_kickstart_files.yml
+    - include_tasks: task_update_default_route.yml
+    - include_tasks: task_add_gtw2.yml
+    when:
+      - crecon | default(true) | bool
+      - vcr_vm_reachable is failed
+      - vcr_vm_connection|default({}) is failed
+  - block:
+    - name: check disks order
+      ansible.builtin.shell: |
+        df -h | grep /boot | awk '{print $1}'
+      register: reg_boot
+      become: "{{ true if ansible_user != 'root' else false }}"
+    - name: reboot vm
+      ansible.builtin.reboot:
+        post_reboot_delay: 10
+        reboot_timeout: 60
+      when: reg_boot.stdout is not search('sda')
+      become: "{{ true if ansible_user != 'root' else false }}"
+    when:
+      - build.version.os_iso|lower is not search('ubuntu')
+      - vmguest_disk0 is changed or vmguest_disk1 is changed or vmguest_disk2 is changed or vmguest_disk3 is changed
+      - disk_info.guest_disk_info | dict2items | length >= 2
   - name: flush handlers
     meta: flush_handlers
   tags: vm_creation

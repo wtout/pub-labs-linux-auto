@@ -71,7 +71,7 @@
 
 - name: get disk1 UUID
   ansible.builtin.shell: |
-    blkid | grep sdb1 | awk '{print $2}' | sed 's|"||g; s|UUID=||'
+    blkid | grep sdb1 | awk '{print $2}' | sed 's|"||g{% if build.version.os_iso|lower is search('ubuntu') %}; s|UUID=||{% endif %}'
   register: reg_disk1_uuid
   become: "{{ true if ansible_user != 'root' else false }}"
   notify: set disk1 mount points
@@ -143,7 +143,7 @@
 
 - name: get disk2 UUID
   ansible.builtin.shell: |
-    blkid | grep sdc1 | awk '{print $2}' | sed 's|"||g; s|UUID=||'
+    blkid | grep sdc1 | awk '{print $2}' | sed 's|"||g{% if build.version.os_iso|lower is search('ubuntu') %}; s|UUID=||{% endif %}'
   register: reg_disk2_uuid
   become: "{{ true if ansible_user != 'root' else false }}"
   notify: set disk2 mount points
@@ -215,7 +215,7 @@
 
 - name: get disk3 UUID
   ansible.builtin.shell: |
-    blkid | grep sdd1 | awk '{print $2}' | sed 's|"||g; s|UUID=||'
+    blkid | grep sdd1 | awk '{print $2}' | sed 's|"||g{% if build.version.os_iso|lower is search('ubuntu') %}; s|UUID=||{% endif %}'
   register: reg_disk3_uuid
   become: "{{ true if ansible_user != 'root' else false }}"
   notify: set disk3 mount points

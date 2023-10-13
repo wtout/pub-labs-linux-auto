@@ -41,7 +41,7 @@ function check_deffile() {
 
 function get_os() {
 	local MYRELEASE
-	MYRELEASE=$(grep ^NAME= /etc/os-release|cut -d '"' -f2)
+	MYRELEASE=$(grep ^NAME= /etc/os-release|cut -d '"' -f2|awk '{print $1}')
 	if [[ "${MYRELEASE}" != "" ]]	
 	then
 		echo ${MYRELEASE}

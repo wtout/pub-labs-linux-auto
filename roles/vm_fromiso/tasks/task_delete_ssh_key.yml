@@ -12,16 +12,6 @@
       path: "{{ home_dir }}/.ssh/known_hosts"
       regex: '^{{ ansible_host }}.*$'
       state: absent
-  rescue:
-  - name: check if known hosts file exists
-    ansible.builtin.stat:
-      path: "{{ home_dir }}/.ssh/known_hosts"
-    become: yes
-  - name: delete ssh key
-    ansible.builtin.lineinfile:
-      path: "{{ home_dir }}/.ssh/known_hosts"
-      regex: '^{{ ansible_host }}.*$'
-      state: absent
-    become: yes
+    become: "{{ 'yes' if host_os|lower is search('almalinux') else 'no' }}"
   delegate_to: localhost
   tags: vm_creation
