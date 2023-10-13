@@ -3,7 +3,7 @@
 - block:
   - include_tasks: task_get_vm_datastore.yml
     when:
-      - hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datastore_cluster'] == '' or (hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['deptype'] == 'h' and build.version.os_iso|lower is search('ubuntu'))
+      - hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datastore_cluster'] == '' or hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['deptype'] == 'h'
 
   - block:
     - block:

@@ -57,7 +57,7 @@
       register: reg_vm_ready
       until: reg_vm_ready is succeeded
       retries: 9
-      delay: 170
+      delay: 100
       no_log: yes
     rescue:
     - ansible.builtin.debug:
