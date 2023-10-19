@@ -12,7 +12,7 @@
       validate_certs: no
     check_mode: no
     ignore_errors: true
-    register: vmguest_info
+    register: reg_vmguest_info
 
   - name: define nic1
     ansible.builtin.set_fact:
@@ -22,6 +22,9 @@
           netmask: "{{ netconfig.nic1.netmask }}"
           gateway: "{{ netconfig.nic1.gateway }}"
           device_type: vmxnet3
+          connected: true
+          start_connected: true
+          allow_guest_control: true
     when:
       - netconfig.nic1.intname != ''
       - netconfig.nic1.ipaddress != ''
@@ -33,6 +36,9 @@
           netmask: "{{ netconfig.nic2.netmask }}"
           gateway: "{{ netconfig.nic2.gateway }}"
           device_type: vmxnet3
+          connected: true
+          start_connected: true
+          allow_guest_control: true
     when:
       - netconfig.nic2.intname != ''
       - netconfig.nic2.ipaddress != ''
