@@ -12,7 +12,7 @@
       validate_certs: no
     check_mode: no
     ignore_errors: true
-    register: vmguest_info
+    register: reg_vmguest_info
 
   - name: define nic1
     ansible.builtin.set_fact:

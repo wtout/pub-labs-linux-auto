@@ -29,6 +29,7 @@
   - block:
     - include_tasks: task_poweroff_vm.yml
     - include_tasks: task_disconnect_cdrom.yml
+      when: build.version.os_iso|lower is not search('ubuntu')
     - include_tasks: task_poweron_vm.yml
     - include_tasks: task_delete_kickstart_files.yml
     - include_tasks: task_update_default_route.yml
