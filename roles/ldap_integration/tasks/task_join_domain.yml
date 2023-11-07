@@ -58,6 +58,17 @@
         path: '/etc/sssd/sssd.conf'
         line: 'ad_enable_gc = False'
       notify: restart sssd
+    - name: Disable dynamic DNS update in /etc/sssd/sssd.conf
+      ansible.builtin.lineinfile:
+        path: '/etc/sssd/sssd.conf'
+        line: 'dyndns_update = False'
+      notify: restart sssd
+    - name: set ad_gpo_access_control to permissive in /etc/sssd/sssd.conf
+      ansible.builtin.lineinfile:
+        path: '/etc/sssd/sssd.conf'
+        line: 'ad_gpo_access_control = permissive'
+      notify: restart sssd
+      when: (sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name) is search('staging')
     when:
       - ansible_facts.distribution == 'AlmaLinux'
   - block:
