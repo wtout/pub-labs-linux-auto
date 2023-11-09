@@ -10,7 +10,6 @@
       ansible.builtin.yum:
         name: 'podman-docker'
         state: installed
-      when: ansible_facts.distribution == 'AlmaLinux'
     - name: create the /etc/containers/nodocker file
       ansible.builtin.file:
         path: /etc/containers/nodocker
@@ -35,11 +34,16 @@
       - reboot the node
     when: ansible_facts.distribution == 'CentOS'
     become: true
-  - name: Install Podman-Docker
-    ansible.builtin.apt:
-      name: 'podman-docker'
-      state: present
-      update_cache: true
+  - block:
+    - name: Install Podman-Docker
+      ansible.builtin.apt:
+        name: 'podman-docker'
+        state: present
+        update_cache: true
+    - name: create the /etc/containers/nodocker file
+      ansible.builtin.file:
+        path: /etc/containers/nodocker
+        state: touch
     when: ansible_facts.distribution == 'Ubuntu'
     become: true
   tags: [ 'never', 'docker' ]
