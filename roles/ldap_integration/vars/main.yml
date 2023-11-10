@@ -1,4 +1,4 @@
 ---
 # vars file for ldap_integration
-infra_admin_user: "{{ vars[('S' if 'dr' in group_names else 'P') + 'INFRABUILD_USER'] }}"
-infra_admin_pass: "{{ vars[('S' if 'dr' in group_names else 'P') + 'INFRABUILD_PASS'] }}"
+infra_admin_user: "{{ vars[('S' if 'dr' in group_names else 'P') + 'AD_MGMT_USER'] }}"
+infra_admin_pass: "{{ vars[('S' if 'dr' in group_names else 'P') + 'AD_MGMT_PASS'] }}"

@@ -3,5 +3,5 @@
 ansible_user: "{{ credentials.username }}"
 ansible_ssh_pass: "{{ credentials.password }}"
 ansible_become_pass: "{{ credentials.password }}"
-vm_admin_user: "{{ SLABSADMIN_USER }}"
-vm_admin_pass: "{{ SLABSADMIN_PASS }}"
+vm_admin_user: "{{ SLINUX_LABSADMIN_USER }}"
+vm_admin_pass: "{{ SLINUX_LABSADMIN_PASS }}"

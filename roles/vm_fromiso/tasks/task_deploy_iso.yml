@@ -120,6 +120,75 @@
         wait_for_process: true
       register: reg_pi_complete
       until: reg_pi_complete is succeeded
+    - block:
+      - name: check if postinstall script completed successfully
+        community.vmware.vmware_vm_shell:
+          hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
+          username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
+          password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
+          datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
+          folder: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] + '/vm' + (('' if fldr_name is regex('^/') else '/') + fldr_name if fldr_name != '' else '') }}"
+          validate_certs: false
+          vm_id: "{{ vm.name }}"
+          vm_username: "{{ ansible_user }}"
+          vm_password: "{{ ansible_ssh_pass }}"
+          vm_shell: /usr/bin/grep
+          vm_shell_args: "'Err:' {{ piscript }}"
+          wait_for_process: true
+        register: reg_pi_status
+        failed_when: reg_pi_status.exit_code == 0
+        ignore_errors: yes
+      rescue:
+      - name: delete {{ picomplete }}
+        community.vmware.vmware_vm_shell:
+          hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
+          username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
+          password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
+          datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
+          folder: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] + '/vm' + (('' if fldr_name is regex('^/') else '/') + fldr_name if fldr_name != '' else '') }}"
+          validate_certs: false
+          vm_id: "{{ vm.name }}"
+          vm_username: "{{ ansible_user }}"
+          vm_password: "{{ ansible_ssh_pass }}"
+          vm_shell: /bin/sudo
+          vm_shell_args: "-S /bin/sh -c '/usr/bin/rm {{ picomplete }}' <<< {{ ansible_ssh_pass }}"
+          wait_for_process: true
+        register: reg_rm_picomplete
+        until: reg_rm_picomplete is succeeded
+      - name: rerun post-install script
+        community.vmware.vmware_vm_shell:
+          hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
+          username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
+          password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
+          datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
+          folder: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] + '/vm' + (('' if fldr_name is regex('^/') else '/') + fldr_name if fldr_name != '' else '') }}"
+          validate_certs: false
+          vm_id: "{{ vm.name }}"
+          vm_username: "{{ ansible_user }}"
+          vm_password: "{{ ansible_ssh_pass }}"
+          vm_shell: /bin/sudo
+          vm_shell_args: "-S /bin/sh -c '/bin/sh {{ piscript }} | tee rerun_{{ piscript }}.log' <<< {{ ansible_ssh_pass }}"
+          wait_for_process: true
+          timeout: 180
+        register: reg_rerun_postinstall
+        until: reg_rerun_postinstall is succeeded
+      - name: wait for post install script rerun to finish
+        community.vmware.vmware_vm_shell:
+          hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
+          username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
+          password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
+          datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
+          folder: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] + '/vm' + (('' if fldr_name is regex('^/') else '/') + fldr_name if fldr_name != '' else '') }}"
+          validate_certs: false
+          vm_id: "{{ vm.name }}"
+          vm_username: "{{ ansible_user }}"
+          vm_password: "{{ ansible_ssh_pass }}"
+          vm_shell: /usr/bin/ls
+          vm_shell_args: "{{ picomplete }}"
+          wait_for_process: true
+        register: reg_rerun_pi_complete
+        until: reg_rerun_pi_complete is succeeded
+      when: reg_pi_complete is succeeded
     when: 
       - reg_vm_ready is succeeded
       - build.version.os_iso|lower is search('ubuntu')

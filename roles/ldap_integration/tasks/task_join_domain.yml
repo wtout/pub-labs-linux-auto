@@ -1,13 +1,24 @@
 ---
 # Tasks to join the AD domain
 - block:
-  - name: join the {{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }} domain
-    ansible.builtin.shell: echo '{{ infra_admin_pass }}' | realm join -v -U {{ infra_admin_user }} {{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }}
-    register: reg_join_domain
-    no_log: yes
-    failed_when:
-      - reg_join_domain.rc == 1
-      - reg_join_domain.stderr is not search('Already joined to this domain')
+  - block:
+    - name: join the {{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }} domain
+      ansible.builtin.shell: echo '{{ infra_admin_pass }}' | realm join -v -U {{ infra_admin_user }} {{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }}
+      register: reg_join_domain
+      no_log: yes
+      failed_when:
+        - reg_join_domain.rc == 1
+        - reg_join_domain.stderr is not search('Already joined to this domain')
+    rescue:
+    - ansible.builtin.debug:
+        msg:
+          - 'Joining the domain failed'
+          - ''
+          - "{{ reg_join_domain|replace(infra_admin_pass,'obfuscated') }}"
+    always:
+    - ansible.builtin.assert:
+        that:
+          - reg_join_domain is succeeded
   - name: change setings in /etc/sssd/sssd.conf
     ansible.builtin.replace:
       path: '/etc/sssd/sssd.conf'
@@ -104,15 +115,5 @@
         pam-auth-update --enable mkhomedir
     when:
       - ansible_facts.distribution == 'Ubuntu'
-  rescue:
-  - ansible.builtin.debug:
-      msg:
-        - 'Joining the domain failed'
-        - ''
-        - "{{ reg_join_domain|replace(infra_admin_pass,'obfuscated') }}"
-  always:
-  - ansible.builtin.assert:
-      that:
-        - reg_join_domain is succeeded
   become: "{{ true if ansible_user != 'root' else false }}"
   tags: [ 'never', 'ldap_integration' ]
