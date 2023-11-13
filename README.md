@@ -64,7 +64,7 @@ The system definition file consists of the following variables:
 
 To create the system inventory without deploying the system, issue the following command from the automation root directory (pae-labs-linux-auto):
 
-    $> sh Bash/play_deploy.sh --envname <system-name> --tags none
+    $> bash Bash/play_deploy.sh --envname <system-name> --tags none
 
 
 ### ISO Image ###
@@ -78,7 +78,7 @@ If the _``/data/Packages``_ directory does not exist, the user must create a _``
 
 1- From the automation root directory (pae-labs-linux-auto), run one of the bash scripts under the Bash directory depending on what you want to do. 
 
-    $> sh Bash/<script name> --envname <system-name>
+    $> bash Bash/<script name> --envname <system-name>
 
 with the _``system-name``_ being the name of the system definition file from "System Definition" and the script name being one of the following options:
 
@@ -114,17 +114,17 @@ To skip specific role(s), add "_--skip-tags 'role1,role2,etc...'_" as argument t
 
 **_Example1_**: to execute one or more roles, run the script as follows:
 
-    $> sh Bash/<script-name> --envname <system-name> --tags 'role1,role2,etc...'
+    $> bash Bash/<script-name> --envname <system-name> --tags 'role1,role2,etc...'
 
 **_Example2_**: to run all roles except one or more, run the script as follows:
 
-    $> sh Bash/<script-name> --envname <system-name> --skip-tags 'role1,role2,etc...'
+    $> bash Bash/<script-name> --envname <system-name> --skip-tags 'role1,role2,etc...'
 
 To limit the processing to specific host(s) or group(s) or a combination of both, add "_--limit 'group1,host1,etc...'_" as argument to the script.
 
 **_Example3_**: to execute role1 and role2 on the lnxvm group and drlnxvm01, run the script as follows:
 
-    $> sh Bash/<script-name> --envname <system-name> --tags 'role1,role2' --limit 'lnxvm,drlnxvm01'
+    $> bash Bash/<script-name> --envname <system-name> --tags 'role1,role2' --limit 'lnxvm,drlnxvm01'
 
 ***Note**: group(s) or host(s) names specified with --limit must match the names defined in the hosts.yml file*
 
