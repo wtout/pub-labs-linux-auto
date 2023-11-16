@@ -107,7 +107,6 @@
         regexp: '^(AllowGroups.*)$'
         replace: '\g<1> "domain users"'
       notify: restart sshd
-    become: "{{ true if ansible_user != 'root' else false }}"
     when:
       - ansible_facts.distribution == 'CentOS'
   - block:

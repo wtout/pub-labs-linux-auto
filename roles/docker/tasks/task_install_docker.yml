@@ -19,8 +19,11 @@
         path: /etc/containers/storage.conf
         regexp: '^(ignore_chown_errors =) "false"$'
         replace: '\g<1> "true"'
+    - name: define REGISTRY_AUTH_FILE
+      ansible.builtin.lineinfile:
+        line: 'export REGISTRY_AUTH_FILE=~/.podman/auth.json'
+        path: /etc/environment
     when: ansible_facts.distribution == 'AlmaLinux'
-    become: true
   - name: Install Docker
     ansible.builtin.yum:
       name: 'docker'
@@ -33,7 +36,6 @@
       - start docker
       - reboot the node
     when: ansible_facts.distribution == 'CentOS'
-    become: true
   - block:
     - name: Install Podman-Docker
       ansible.builtin.apt:
@@ -45,5 +47,5 @@
         path: /etc/containers/nodocker
         state: touch
     when: ansible_facts.distribution == 'Ubuntu'
-    become: true
+  become: true
   tags: [ 'never', 'docker' ]
