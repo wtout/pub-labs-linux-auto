@@ -1,10 +1,37 @@
 ---
 # Tasks to enable no-password sudo
 - block:
-  - name: enable no-password sudo commands
+  - name: enable no-password sudo commands for {{ vm_admin_user }}
     ansible.builtin.replace:
       path: "/etc/sudoers.d/{{ vm_admin_user }}"
       regexp: '^(%.*\)) ({{ vm_admin_user|upper }}.*)$'
       replace: '\g<1> NOPASSWD: \g<2>'
-    become: true
+  - name: check if domain is joined
+    ansible.builtin.shell: realm list
+    check_mode: no
+    register: reg_joined
+    failed_when: reg_joined.stdout_lines|select('search','realm-name')|list == []
+    ignore_errors: yes
+  - block:
+    - name: check if domain users are allowed to do no password sudo
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers
+        line: '%domain\ users        ALL=(ALL)       NOPASSWD: ALL'
+      check_mode: yes
+      register: reg_ds_check
+      failed_when: reg_ds_check is failed or reg_ds_check is changed
+    rescue:
+    - name: allow domain users to do no password sudo
+      ansible.builtin.replace:
+        path: /etc/sudoers
+        regexp: '^{{ line_item.reg }}$'
+        replace: '{{ line_item.rep }}'
+        validate: /usr/sbin/visudo -cf %s
+      loop:
+        - { reg: '(## Allows members of the "domain users" group to run all commands)', rep: '\g<1> without a password' }
+        - { reg: '(%domain.+users\s+ALL=.ALL.\s+)ALL', rep: '\g<1>NOPASSWD: ALL' }
+      loop_control:
+        loop_var: line_item
+    when: reg_joined is succeeded
+  become: "{{ true if ansible_user != 'root' else false }}"
   tags: [ 'never', 'docker' ]

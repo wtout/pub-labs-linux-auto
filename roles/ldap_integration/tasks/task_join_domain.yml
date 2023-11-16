@@ -41,30 +41,31 @@
     check_mode: no
     ignore_errors: yes
   - block:
-    - name: check if domain users are allowed to do no password sudo
+    - name: check if domain users are allowed to do sudo
       ansible.builtin.lineinfile:
         path: /etc/sudoers
-        line: '%domain\ users        ALL=(ALL)       NOPASSWD: ALL'
+        line: '%domain\ users        ALL=(ALL)       {{ nopasswd }}ALL'
       check_mode: yes
       register: reg_ds_check
       failed_when: reg_ds_check is failed or reg_ds_check is changed
     rescue:
-    - name: allow domain users to do no password sudo
+    - name: allow domain users to do{{ ' no password ' if reg_docker_present.stdout is search('docker') else '' }}sudo
       ansible.builtin.replace:
         path: /etc/sudoers
         regexp: '^(.*%wheel.*NOPASSWD: ALL)$'
-        replace: '\g<1>\n\n## Allows members of the "domain users" group to run all commands without a password\n%domain\ users        ALL=(ALL)       NOPASSWD: ALL'
+        replace: '\g<1>\n\n## Allows members of the "domain users" group to run all commands{{ npstring }}\n%domain\ users        ALL=(ALL)       {{ nopasswd}}ALL'
         validate: /usr/sbin/visudo -cf %s
       when: build.version.os_iso is not search('ubuntu')
-    - name: allow domain users to do no password sudo
+    - name: allow domain users to do{{ ' no password ' if reg_docker_present.stdout is search('docker') else '' }}sudo
       ansible.builtin.replace:
         path: /etc/sudoers
         regexp: '^(.*%sudo.*ALL)$'
-        replace: '\g<1>\n\n## Allows members of the "domain users" group to run all commands without a password\n%domain\ users        ALL=(ALL)       NOPASSWD: ALL'
+        replace: '\g<1>\n\n## Allows members of the "domain users" group to run all commands{{ npstring }}\n%domain\ users        ALL=(ALL)       {{ nopasswd}}ALL'
         validate: /usr/sbin/visudo -cf %s
       when: build.version.os_iso is search('ubuntu')
-    become: "{{ true if ansible_user != 'root' else false }}"
-    when: reg_docker_present.stdout is search('docker')
+    vars:
+      nopasswd: "{{ 'NOPASSWD: ' if reg_docker_present.stdout is search('docker') else '' }}"
+      npstring: "{{ ' without password' if reg_docker_present.stdout is search('docker') else '' }}"
   - block:
     - name: Add ad_site to /etc/sssd/sssd.conf
       ansible.builtin.lineinfile:
