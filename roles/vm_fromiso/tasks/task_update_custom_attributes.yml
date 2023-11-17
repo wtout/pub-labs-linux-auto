@@ -7,9 +7,9 @@
       {{ 'git config user.email' if build.team_contact1 == '' else '' }}
     register: reg_user_email
     check_mode: no
-  - name: Add custom attributes
+  - name: Update custom attributes
     block:
-      - name: Add VM's custom attributes
+      - name: Update VM's custom attributes
         community.vmware.vmware_guest_custom_attributes:
           hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
           username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
