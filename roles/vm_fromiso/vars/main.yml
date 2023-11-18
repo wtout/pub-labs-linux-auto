@@ -5,5 +5,5 @@ iso_dir: 'Packages/ISO'
 iso_installer: "{{ build.version.os_iso }}"
 piscript: '/var/log/installer/postinstall_script.sh'
 picomplete: '/var/log/installer/build.complete'
-vm_app_user: "{{ user.name if user.name != '' else vars[('S' if 'dr' in group_names else 'P') + 'LINUX_APPADMIN_USER'] }}"
-vm_app_pass: "{{ user.password if user.name != '' else vars[('S' if 'dr' in group_names else 'P') + 'LINUX_APPADMIN_PASS'] }}"
+vm_app_user: "{{ user.name }}"
+vm_app_pass: "{{ user.password if user.password != '' else vars[('S' if 'dr' in group_names else 'P') + 'LINUX_APPADMIN_PASS'] }}"

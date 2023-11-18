@@ -84,7 +84,9 @@ screen
 
 # Add users
 user --name={{ vm_admin_user }} --iscrypted --password={{ vm_admin_pass | password_hash('sha512') }}
+{% if vm_app_user != '' %}
 user --name={{ vm_app_user }} --iscrypted --password={{ vm_app_pass | password_hash('sha512') }}
+{% endif %}
 
 %post
 # Add search domain and interface name
@@ -127,8 +129,10 @@ echo 'snmpd: 172.0.0.0/255.0.0.0' >> /etc/hosts.allow
 # set the Last password change value on the {{ vm_admin_user }} account created at install time
 chage -d `date +%Y-%m-%d` {{ vm_admin_user }}
 
+{% if vm_app_user != '' %}
 # require the {{ vm_app_user }} user to change password at first login
 passwd --expire {{ vm_app_user }}
+{% endif %}
 
 # Add entry to /etc/sudoers file
 {% if proxy_address is defined and proxy_address != '' %}
@@ -143,6 +147,7 @@ Cmnd_Alias  {{ vm_admin_user | upper }}_SUDO_CMNDS = ALL
 Cmnd_Alias  {{ vm_admin_user | upper }}_SHELLS = /bin/bash, /sbin/nologin, /usr/bin/bash, /usr/sbin/nologin, /bin/csh, /bin/zsh, /bin/tcsh, /bin/ksh, /usr/bin/ksh, /usr/bin/rsh, /bin/chsh, /usr/bin/chsh
 %{{ vm_admin_user }} {{ vm_admin_user | upper }}_SUDO_HOSTS = ({{ vm_admin_user | upper }}_SUDO_RUNAS) {{ vm_admin_user | upper }}_SUDO_CMNDS, !{{ vm_admin_user | upper }}_SHELLS
 xxEOFxx
+{% if vm_app_user != '' %}
 cat << xxEOFxx >> /etc/sudoers.d/{{ vm_app_user }}
 Host_Alias  {{ vm_app_user | upper }}_SUDO_HOSTS = ALL
 Runas_Alias {{ vm_app_user | upper }}_SUDO_RUNAS = ALL
@@ -153,6 +158,7 @@ Cmnd_Alias  {{ vm_app_user | upper }}_EXEC = /bin/vi, /bin/vim, /bin/more, /bin/
 %{{ vm_app_user }} {{ vm_app_user | upper }}_SUDO_HOSTS = ({{ vm_app_user | upper }}_SUDO_RUNAS) NOPASSWD: {{ vm_app_user | upper }}_SUDO_CMNDS, !{{ vm_app_user | upper }}_RP, !{{ vm_app_user | upper }}_SHELLS, ({{ vm_app_user | upper }}_SUDO_RUNAS) NOEXEC: {{ vm_app_user | upper }}_EXEC
 %role\ -\ linux\ l4\ users@cisco-cms.com {{ vm_app_user | upper }}_SUDO_HOSTS = ({{ vm_app_user | upper }}_SUDO_RUNAS) NOPASSWD: {{ vm_app_user | upper }}_SUDO_CMNDS, !{{ vm_app_user | upper }}_SHELLS
 xxEOFxx
+{% endif %}
 %end
 
 %anaconda
