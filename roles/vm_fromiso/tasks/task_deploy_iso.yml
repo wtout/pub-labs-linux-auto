@@ -133,10 +133,25 @@
           vm_username: "{{ ansible_user }}"
           vm_password: "{{ ansible_ssh_pass }}"
           vm_shell: /usr/bin/grep
-          vm_shell_args: "'Err:' {{ piscript }}"
+          vm_shell_args: "'Err:' {{ piscript }}.log"
           wait_for_process: true
         register: reg_pi_status
         failed_when: reg_pi_status.exit_code == 0
+      - name: check if postinstall script installed packages successfully
+        community.vmware.vmware_vm_shell:
+          hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
+          username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
+          password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
+          datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
+          folder: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] + '/vm' + (('' if fldr_name is regex('^/') else '/') + fldr_name if fldr_name != '' else '') }}"
+          validate_certs: false
+          vm_id: "{{ vm.name }}"
+          vm_username: "{{ ansible_user }}"
+          vm_password: "{{ ansible_ssh_pass }}"
+          vm_shell: /usr/bin/grep
+          vm_shell_args: "'Preconfiguring packages' {{ piscript }}.log"
+          wait_for_process: true
+        register: reg_pkg_status
         ignore_errors: yes
       rescue:
       - name: delete {{ picomplete }}

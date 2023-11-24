@@ -1,0 +1,22 @@
+---
+# tasks file to set quota
+- block:
+  - name: enable user quota in grub
+    ansible.builtin.replace:
+      path: /etc/default/grub
+      regexp: '^(GRUB_CMDLINE_LINUX=).*$'
+      replace: '\g<1>"rootflags=uquota"'
+    notify:
+      - update grub
+      - reboot vm
+  - name: enable user quota in /etc/fstab
+    ansible.builtin.replace:
+      path: /etc/fstab
+      regexp: '^(.* / xfs defaults) (.*)$'
+      replace: '\g<1>,uquota \g<2>'
+  - name: flush handlers
+    meta: flush_handlers
+  - name: set user quota on /
+    ansible.builtin.shell: xfs_quota -x -c 'limit bsoft=4g bhard=5g -d' /
+  become: "{{ true if ansible_user != 'root' else false }}"
+  tags: [ 'never', 'usrquota' ]

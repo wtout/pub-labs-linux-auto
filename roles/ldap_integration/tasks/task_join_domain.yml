@@ -10,6 +10,24 @@
         - reg_join_domain.rc == 1
         - reg_join_domain.stderr is not search('Already joined to this domain')
     rescue:
+    - block:
+      - name: run command to correct dpkg problem
+        ansible.builtin.shell: dpkg --configure -a
+        register: reg_dpkg
+      - name: join the {{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }} domain
+        ansible.builtin.shell: echo '{{ infra_admin_pass }}' | realm join -v -U {{ infra_admin_user }} {{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }}
+        register: reg_join_domain
+        no_log: yes
+        failed_when:
+          - reg_join_domain.rc == 1
+          - reg_join_domain.stderr is not search('Already joined to this domain')
+      rescue:
+      - ansible.builtin.debug:
+          msg:
+            - 'Joining the domain failed'
+            - ''
+            - "{{ reg_join_domain|replace(infra_admin_pass,'obfuscated') }}"
+      when: reg_join_domain.stderr is search("you must manually run 'dpkg --configure -a' to correct the problem")
     - ansible.builtin.debug:
         msg:
           - 'Joining the domain failed'
@@ -113,6 +131,8 @@
     - name: Enable automatic home directory creation
       ansible.builtin.command: |
         pam-auth-update --enable mkhomedir
+      environment:
+        DEBIAN_FRONTEND: 'noninteractive'
     when:
       - ansible_facts.distribution == 'Ubuntu'
   become: "{{ true if ansible_user != 'root' else false }}"

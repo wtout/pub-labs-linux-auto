@@ -1,0 +1,14 @@
+---
+# handlers file for usrquota
+- name: update grub
+  ansible.builtin.shell:
+    update-grub
+  become: "{{ true if ansible_user != 'root' else false }}"
+  tags: [ 'never', 'usrquota' ]
+  
+- name: reboot vm
+  ansible.builtin.reboot:
+    post_reboot_delay: 10
+    reboot_timeout: 60
+  become: "{{ true if ansible_user != 'root' else false }}"
+  tags: [ 'never', 'usrquota' ]
