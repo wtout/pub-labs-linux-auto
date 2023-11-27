@@ -21,8 +21,13 @@
         replace: '\g<1> "true"'
     - name: define REGISTRY_AUTH_FILE
       ansible.builtin.lineinfile:
-        line: 'export REGISTRY_AUTH_FILE=~/.podman/auth.json'
-        path: /etc/environment
+        line: "{{ line_item.toadd }}"
+        path: "{{ line_item.filename }}"
+      loop:
+        - {filename: '/etc/environment', toadd: 'export REGISTRY_AUTH_FILE="${HOME}/.podman/auth.json"'}
+        - {filename: '/etc/bashrc', toadd: 'source /etc/environment'}
+      loop_control:
+        loop_var: line_item
     when: ansible_facts.distribution == 'AlmaLinux'
   - name: Install Docker
     ansible.builtin.yum:
