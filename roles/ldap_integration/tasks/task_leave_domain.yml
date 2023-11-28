@@ -29,8 +29,18 @@
         state: absent
         validate: /usr/sbin/visudo -cf %s
       loop:
-        - '^## Allows members of the "domain users" group to.*$'
+        - '^## Allows members of the "domain .*" group to.*$'
         - '^%domain.*ALL$\n'
+      loop_control:
+        loop_var: line_item
+    - name: delete consecutive blank lines
+      ansible.builtin.replace:
+        path: /etc/sudoers
+        regexp: '{{ line_item }}'
+        replace: ''
+        validate: /usr/sbin/visudo -cf %s
+      loop:
+        - '^\n\n$'
       loop_control:
         loop_var: line_item
   - block:

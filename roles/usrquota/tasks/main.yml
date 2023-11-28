@@ -58,6 +58,12 @@
         - uq_creds_status|default('') is not search('invalid')
         - uq_creds_status|default('') is not search('does not exist')
       fail_msg: "{{ uq_creds_status|default('') }}"
+  - name: get the Linux distribution
+    ansible.builtin.setup:
+      filter:
+        - 'ansible_distribution'
+    when:
+      - ansible_facts.distribution is not defined or ansible_facts.distribution == ''
   - block:
     - include_tasks: task_set_quota.yml
     when: set_quota|default(false)

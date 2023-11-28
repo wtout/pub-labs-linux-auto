@@ -52,6 +52,29 @@
     ansible.builtin.setup:
       filter:
         - 'distribution'
+  - block:
+    - name: check if domain admins are allowed to do sudo
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers
+        line: '%domain\ admins        ALL=(ALL)       NOPASSWD: ALL'
+      check_mode: yes
+      register: reg_ds_check
+      failed_when: reg_ds_check is failed or reg_ds_check is changed
+    rescue:
+    - name: allow domain admins to do no password sudo
+      ansible.builtin.replace:
+        path: /etc/sudoers
+        regexp: '^(.*%wheel.*NOPASSWD: ALL)$'
+        replace: '\g<1>\n\n## Allows members of the "domain admins" group to run all commands without password\n%domain\ admins        ALL=(ALL)       NOPASSWD: ALL'
+        validate: /usr/sbin/visudo -cf %s
+      when: build.version.os_iso is not search('ubuntu')
+    - name: allow domain admins to do no password sudo
+      ansible.builtin.replace:
+        path: /etc/sudoers
+        regexp: '^(.*%sudo.*ALL)$'
+        replace: '\g<1>\n\n## Allows members of the "domain admins" group to run all commands without password\n%domain\ admins        ALL=(ALL)       NOPASSWD: ALL'
+        validate: /usr/sbin/visudo -cf %s
+      when: build.version.os_iso is search('ubuntu')
   - name: check if docker or podman-docker is installed
     ansible.builtin.shell: |
       {% if ansible_facts.distribution == 'Ubuntu' %}dpkg -l{% else %}rpm -qa{% endif %} | grep docker

@@ -4,16 +4,16 @@
   - name: disable user quota in grub
     ansible.builtin.replace:
       path: /etc/default/grub
-      regexp: '^(GRUB_CMDLINE_LINUX=).*$'
-      replace: '\g<1>""'
+      regexp: '^(GRUB_CMDLINE_LINUX=".*) rootflags=uquota"$'
+      replace: '\g<1>"'
     notify:
-      - update grub
+      - "{{ 'update-grub' if ansible_facts.distribution == 'Ubuntu' else 'grub2-mkconfig' }}"
       - reboot vm
   - name: disable user quota in /etc/fstab
     ansible.builtin.replace:
       path: /etc/fstab
-      regexp: '^(.* / xfs defaults),uquota (.*)$'
-      replace: '\g<1> \g<2>'
+      regexp: '^(.*\s*/\s*xfs\s*defaults),uquota(\s*.*)$'
+      replace: '\g<1>\g<2>'
   - name: flush handlers
     meta: flush_handlers
   become: "{{ true if ansible_user != 'root' else false }}"
