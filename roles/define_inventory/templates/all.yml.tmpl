@@ -100,6 +100,9 @@ sysconfig:
     # NTP server
     ntp_server: {{ ([environment_definition.vm_setting.sysconfig.ntp_server|unique|join(', ')] if environment_definition.vm_setting.sysconfig.ntp_server|type_debug == 'list' else ("'" + environment_definition.vm_setting.sysconfig.ntp_server|string + "'")) if environment_definition.vm_setting.sysconfig.ntp_server is defined else "'{{ build.primary.octets }}.254'" }}
 
+    # User quota
+    user_quota: {{ environment_definition.vm_setting.sysconfig.user_quota if environment_definition.vm_setting.sysconfig.user_quota is defined and environment_definition.vm_setting.sysconfig.user_quota != none else 5 }}
+
   secondary:
   
     # DNS servers list
@@ -110,3 +113,6 @@ sysconfig:
 
     # NTP server
     ntp_server: {{ (([environment_definition.drvm_setting.sysconfig.ntp_server|unique|join(', ')] if environment_definition.drvm_setting.sysconfig.ntp_server|type_debug == 'list' else ("'" + environment_definition.drvm_setting.sysconfig.ntp_server|string + "'")) if environment_definition.drvm_setting.sysconfig.ntp_server is defined else "'{{ build.secondary.octets }}.254'") if environment_definition.build.disaster_recovery else '' }}
+
+    # User quota
+    user_quota: {{ environment_definition.drvm_setting.sysconfig.user_quota if environment_definition.drvm_setting.sysconfig.user_quota is defined and environment_definition.drvm_setting.sysconfig.user_quota != none else 5 }}
