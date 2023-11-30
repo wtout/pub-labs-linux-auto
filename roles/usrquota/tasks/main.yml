@@ -66,6 +66,7 @@
       - ansible_facts.distribution is not defined or ansible_facts.distribution == ''
   - block:
     - include_tasks: task_set_quota.yml
+    - include_tasks: task_disable_user_sudo.yml
     when: set_quota|default(false)
   - block:
     - include_tasks: task_unset_quota.yml
