@@ -339,7 +339,7 @@ function get_proxy() {
 		else
 			[[ $- =~ x ]] && debug=1 && [[ "${SECON}" == "true" ]] && set +x
 			select_creds primary vcenter_service user "${PCREDS_LIST[@]}" 1>/dev/null && read -r PPUSER <<< "$(select_creds primary vcenter_service user "${PCREDS_LIST[@]}")"
-			select_creds primary vcenter_service pass "${PCREDS_LIST[@]}" 1>/dev/null && read -r PPPASS <<< "$(select_creds primary vcenter_service pass "${PCREDS_LIST[@]}" "${PCREDS_LIST[@]}")"
+			select_creds primary vcenter_service pass "${PCREDS_LIST[@]}" 1>/dev/null && read -r PPPASS <<< "$(select_creds primary vcenter_service pass "${PCREDS_LIST[@]}")"
 			select_creds secondary vcenter_service user "${SCREDS_LIST[@]}" 1>/dev/null && read -r SPUSER <<< "$(select_creds secondary vcenter_service user "${SCREDS_LIST[@]}")"
 			select_creds secondary vcenter_service pass "${SCREDS_LIST[@]}" 1>/dev/null && read -r SPPASS <<< "$(select_creds secondary vcenter_service pass "${SCREDS_LIST[@]}")"
 			MYPROXY=$(echo "${MYPROXY}" | sed -e "s|//.*@|//|g" -e "s|//|//${PPUSER}:${PPPASS}@|g")
