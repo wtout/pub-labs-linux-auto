@@ -17,9 +17,9 @@
   - name: flush handlers
     meta: flush_handlers
   - name: set user quota on /
-    ansible.builtin.shell: xfs_quota -x -c 'limit bsoft={{ softlimit }}g bhard={{ hardlimit }}g -d' /
+    ansible.builtin.shell: xfs_quota -x -c 'limit bsoft={{ softlimit }}k bhard={{ hardlimit }}k -d' /
     vars:
-      softlimit: "{{ sysconfig.secondary.user_quota if 'dr' in group_names else sysconfig.primary.user_quota }}"
-      hardlimit: "{{ softlimit|int + 1 }}"
+      softlimit: "{{ (sysconfig.secondary.user_quota if 'dr' in group_names else sysconfig.primary.user_quota)|int * 1024|pow(2)|int }}"
+      hardlimit: "{{ (softlimit|int + 0.2 * 1024|pow(2))|int }}"
   become: "{{ true if ansible_user != 'root' else false }}"
   tags: [ 'never', 'usrquota' ]
