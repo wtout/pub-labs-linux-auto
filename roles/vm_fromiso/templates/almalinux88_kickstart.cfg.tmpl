@@ -1,0 +1,180 @@
+#version=RHEL8
+# Use text mode install
+text --non-interactive
+
+repo --name="AppStream" --baseurl=file:///run/install/sources/mount-0000-cdrom/AppStream
+
+%addon com_redhat_kdump --enable --reserve-mb='auto'
+%end
+
+# Keyboard layouts
+keyboard --xlayouts='us'
+
+# System language
+lang en_US.UTF-8
+
+# Network information
+{% if netconfig.nic1.ipaddress != '' %}
+network --bootproto=static --device={{ netconfig.nic1.intname }} --onboot=on --ethtool=vmxnet3 --gateway={{ netconfig.nic1.gateway if netconfig.nic1.gateway != '' else ((build.secondary.octets if 'dr' in group_names else build.primary.octets) + '.254') if (build.secondary.octets if 'dr' in group_names else build.primary.octets) is defined else '' }} --ip={{ netconfig.nic1.ipaddress }} --nameserver={{ (sysconfig.secondary.dns_servers if 'dr' in group_names else sysconfig.primary.dns_servers)|join(',') }} --netmask={{ netconfig.nic1.netmask }} {% if netconfig.nic1.ipv6_pool is defined and netconfig.nic1.ipv6_pool|length >= inventory_hostname[-2:]|int and netconfig.nic1.ipv6_pool[inventory_hostname[-2:]|int - 1] != '' -%} --ipv6={{ netconfig.nic1.ipv6_pool[inventory_hostname[-2:]|int - 1] }} --ipv6gateway={{ netconfig.nic1.ipv6_gtw }} {% else -%} --noipv6 {% endif -%} --activate
+{% endif %}
+{% if netconfig.nic2.ipaddress != '' %}
+network --bootproto=static --device={{ netconfig.nic2.intname }} --interfacename={{ netconfig.nic2.intname }} --onboot=on --ethtool=vmxnet3 --gateway={{ netconfig.nic2.gateway if netconfig.nic2.gateway != '' else ((build.secondary.octets if 'dr' in group_names else build.primary.octets) + '.254') if (build.secondary.octets if 'dr' in group_names else build.primary.octets) is defined else '' }} --ip={{ netconfig.nic2.ipaddress }} --nameserver={{ (sysconfig.secondary.dns_servers if 'dr' in group_names else sysconfig.primary.dns_servers)|join(',') }} --netmask={{ netconfig.nic2.netmask }} {% if netconfig.nic2.ipv6_pool is defined and netconfig.nic2.ipv6_pool|length >= inventory_hostname[-2:]|int and netconfig.nic2.ipv6_pool[inventory_hostname[-2:]|int - 1] != '' -%} --ipv6={{ netconfig.nic2.ipv6_pool[inventory_hostname[-2:]|int - 1] }} --ipv6gateway={{ netconfig.nic2.ipv6_gtw }} {% else -%} --noipv6 {% endif -%} --activate
+{% endif %}
+network --hostname={{ vm.name }}
+
+# Use CDROM installation media
+cdrom
+
+# Run the Setup Agent on first boot
+firstboot --disable
+
+ignoredisk --only-use=sda
+# Disk partitioning information
+autopart --type plain --fstype=xfs
+# Partition clearing information
+clearpart --none --initlabel
+
+# System timezone
+timezone America/New_York --isUtc --ntpservers={% if 'dr' in group_names %}
+{% if sysconfig.secondary.ntp_server|type_debug == 'list' %}
+{{ sysconfig.secondary.ntp_server|join(',')|replace(' ','') }}
+{% else %}
+{{ sysconfig.secondary.ntp_server }}
+{% endif %}
+{% else %}
+{% if sysconfig.primary.ntp_server|type_debug == 'list' %}
+{{ sysconfig.primary.ntp_server|join(',')|replace(' ','') }}
+{% else %}
+{{ sysconfig.primary.ntp_server }}
+{% endif %}
+{% endif %}
+
+# Root password
+rootpw --iscrypted {{ ansible_ssh_pass | password_hash('sha512') }}
+
+# SELinux configuration
+selinux --disabled
+# System services
+services --enabled="chronyd"
+# Firewall configuration
+firewall --enabled
+
+# Do not configure the X Window System
+skipx
+
+# Reboot after installation
+reboot
+
+%packages
+@base
+@core
+@container-management
+kexec-tools
+open-vm-tools
+chrony
+aide
+net-snmp
+net-snmp-utils
+rsyslog
+realmd
+oddjob
+oddjob-mkhomedir
+adcli
+samba-common
+samba-common-tools
+krb5-workstation
+openldap-clients
+sssd
+policycoreutils-python-utils
+expect
+git
+tmux
+%end
+
+# System authorization information
+authselect select sssd with-mkhomedir --force
+
+# Add user
+user --name={{ vm_admin_user }} --iscrypted --password={{ vm_admin_pass | password_hash('sha512') }}
+{% if vm_app_user != '' %}
+user --name={{ vm_app_user }} --iscrypted --password={{ vm_app_pass | password_hash('sha512') }}
+{% endif %}
+
+%post
+# Set the necessary ownership and permissions for the SSSD configuration file
+[[ -f /etc/sssd/sssd.conf ]] && chown root:root /etc/sssd/sssd.conf && chmod 600 /etc/sssd/sssd.conf
+
+# Add search domain
+grep "dns-search={{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }}" /etc/NetworkManager/system-connections/{{ netconfig.nic1.intname }}.nmconnection || sed -i 's|^\(\[ipv4\]\)$|\1\ndns-search={{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }}|' etc/NetworkManager/system-connections/{{ netconfig.nic1.intname }}.nmconnection
+{% if netconfig.nic2.ipaddress != '' %}
+{% block nic2_domain %}
+grep "dns-search={{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }}" /etc/NetworkManager/system-connections/{{ netconfig.nic2.intname }}.nmconnection || sed -i 's|^\(\[ipv4\]\)$|\1\ndns-search={{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }}|' etc/NetworkManager/system-connections/{{ netconfig.nic2.intname }}.nmconnection
+{% endblock nic2_domain %}
+{% endif %}
+systemctl restart NetworkManager
+
+# Proxy config
+{% if proxy_address is defined and proxy_address != '' %}
+{% block profile_config %}
+cat <<EOF > /etc/profile.d/setproxy.sh
+unset {http,https,ftp,no}_proxy; unset {HTTP,HTTPS,FTP,NO}_PROXY; unset proxy_address
+proxy_address="{{ proxy_address }}"
+export http_proxy=\${proxy_address}
+export https_proxy=\${proxy_address}
+export ftp_proxy=\${proxy_address}
+export no_proxy=".cisco.com,.cisco-pae.com,.staging.cisco-cms.com,.cisco-cms.com,172.19.0.0/16,172.23.0.0/16,172.30.0.0/16"
+EOF
+{% endblock profile_config %}
+{% block yum_conf %}
+# Add proxy to yum.conf on VM
+grep proxy /etc/yum.conf || sed -i 's|^\(\[main\]\)$|\1\nproxy={{ proxy_address }}|' /etc/yum.conf
+cp /etc/yum.conf /etc/dnf/dnf.conf
+{% endblock yum_conf %}
+{% endif %}
+
+# Configure firewall to limit SSH access
+firewall-offline-cmd --remove-service=ssh
+firewall-offline-cmd --new-zone=SSHZONE
+firewall-offline-cmd --zone=SSHZONE --add-source=172.0.0.0/255.0.0.0
+firewall-offline-cmd --zone=SSHZONE --add-service=ssh
+
+# set the Last password change value on the {{ vm_admin_user }} account created at install time
+chage -d `date +%Y-%m-%d` {{ vm_admin_user }}
+
+{% if vm_app_user != '' %}
+# require the {{ vm_app_user }} user to change password at first login
+passwd --expire {{ vm_app_user }}
+{% endif %}
+
+# Add entry to /etc/sudoers file
+{% if proxy_address is defined and proxy_address != '' %}
+grep https_proxy /etc/sudoers || sed -i 's| XAUTHORITY"| XAUTHORITY"\nDefaults    env_keep += "http_proxy ftp_proxy all_proxy https_proxy no_proxy"|' /etc/sudoers
+{% endif %}
+
+# Add user to /etc/sudoers.d
+cat << xxEOFxx >> /etc/sudoers.d/{{ vm_admin_user }}
+Host_Alias  {{ vm_admin_user | upper }}_SUDO_HOSTS = ALL
+Runas_Alias {{ vm_admin_user | upper }}_SUDO_RUNAS = ALL
+Cmnd_Alias  {{ vm_admin_user | upper }}_SUDO_CMNDS = ALL
+Cmnd_Alias  {{ vm_admin_user | upper }}_SHELLS = /bin/bash, /sbin/nologin, /usr/bin/bash, /usr/sbin/nologin, /bin/csh, /bin/zsh, /bin/tcsh, /bin/ksh, /usr/bin/ksh, /usr/bin/rsh, /bin/chsh, /usr/bin/chsh
+%{{ vm_admin_user }} {{ vm_admin_user | upper }}_SUDO_HOSTS = ({{ vm_admin_user | upper }}_SUDO_RUNAS) {{ vm_admin_user | upper }}_SUDO_CMNDS, !{{ vm_admin_user | upper }}_SHELLS
+xxEOFxx
+{% if vm_app_user != '' %}
+cat << xxEOFxx >> /etc/sudoers.d/{{ vm_app_user }}
+Host_Alias  {{ vm_app_user | upper }}_SUDO_HOSTS = ALL
+Runas_Alias {{ vm_app_user | upper }}_SUDO_RUNAS = ALL
+Cmnd_Alias  {{ vm_app_user | upper }}_SUDO_CMNDS = ALL
+Cmnd_Alias  {{ vm_app_user | upper }}_SHELLS = /bin/bash, /sbin/nologin, /usr/bin/bash, /usr/sbin/nologin, /bin/csh, /bin/zsh, /bin/tcsh, /bin/ksh, /usr/bin/ksh, /usr/bin/rsh, /bin/chsh, /usr/bin/chsh
+Cmnd_Alias  {{ vm_app_user | upper }}_RP = /usr/bin/passwd root, /usr/bin/passwd paelabsadmin,  /usr/sbin/usermod, /usr/bin/su
+Cmnd_Alias  {{ vm_app_user | upper }}_EXEC = /bin/vi, /bin/vim, /bin/more, /bin/less, /usr/bin/vi, /usr/bin/vim, /usr/bin/more, /usr/bin/less
+%{{ vm_app_user }} {{ vm_app_user | upper }}_SUDO_HOSTS = ({{ vm_app_user | upper }}_SUDO_RUNAS) NOPASSWD: {{ vm_app_user | upper }}_SUDO_CMNDS, !{{ vm_app_user | upper }}_RP, !{{ vm_app_user | upper }}_SHELLS, ({{ vm_app_user | upper }}_SUDO_RUNAS) NOEXEC: {{ vm_app_user | upper }}_EXEC
+%role\ -\ linux\ l4\ users@cisco-cms.com {{ vm_app_user | upper }}_SUDO_HOSTS = ({{ vm_app_user | upper }}_SUDO_RUNAS) NOPASSWD: {{ vm_app_user | upper }}_SUDO_CMNDS, !{{ vm_app_user | upper }}_SHELLS
+xxEOFxx
+{% endif %}
+%end
+
+%anaconda
+pwpolicy root --minlen=6 --minquality=1 --notstrict --nochanges --notempty
+pwpolicy user --minlen=6 --minquality=1 --notstrict --nochanges --emptyok
+pwpolicy luks --minlen=6 --minquality=1 --notstrict --nochanges --notempty
+%end
