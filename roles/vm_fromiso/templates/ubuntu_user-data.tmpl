@@ -118,7 +118,7 @@ autoinstall:
         export DEBIAN_FRONTEND=noninteractive
         killall -9 apt-get
         apt-get update
-        apt-get -yqq install chrony iptables aide snmpd rsyslog expect screen realmd sssd sssd-tools libnss-sss libpam-sss adcli samba-common-bin oddjob oddjob-mkhomedir packagekit podman
+        apt-get -yqq install chrony iptables aide sshpass snmp snmpd rsyslog expect screen realmd sssd sssd-tools libnss-sss libpam-sss adcli samba-common-bin oddjob oddjob-mkhomedir packagekit podman
         sed -i '/^.*iburst.*$/d' /etc/chrony/chrony.conf; sed -i 's/^\(# See http.*\)$/\1\n{% if 'dr' in group_names %} {%- if sysconfig.secondary.ntp_server|type_debug == 'list' %} {%- for line in sysconfig.secondary.ntp_server|join(',')|split(', ') %} {{- 'server ' + line + ' iburst\\n' -}} {% endfor -%} {% else %} {{- 'server ' + sysconfig.secondary.ntp_server + ' iburst\\n' -}} {% endif -%} {% else %} {%- if sysconfig.primary.ntp_server|type_debug == 'list' %} {%- for line in sysconfig.primary.ntp_server|join(',')|split(', ') %} {{- 'server ' + line + ' iburst\\n' -}} {% endfor -%} {% else %} {{- 'server ' + sysconfig.primary.ntp_server + ' iburst\\n' -}} {% endif -%} {% endif -%}/' /etc/chrony/chrony.conf
         touch /var/log/installer/build.complete
       path: {{ piscript }}
