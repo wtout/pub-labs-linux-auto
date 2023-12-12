@@ -1,6 +1,11 @@
 ---
 # tasks file to unset quota
 - block:
+  - name: remove the job to delete files older than 7 days
+    ansible.builtin.cron:
+      name: "clean up transfer directory"
+      state: absent
+      user: root
   - name: Disallow all users to write to {{ vm.disk1_mount }}/transfer
     ansible.builtin.file:
       path: "{{ vm.disk1_mount }}/transfer"

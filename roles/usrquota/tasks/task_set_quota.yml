@@ -37,7 +37,7 @@
   - name: update /etc/motd
     ansible.builtin.copy:
       dest: /etc/motd
-      content: "{{ '\n' if ansible_facts.distribution != 'Ubuntu' else '' }}Your home disk quota is 1G\nIf you exceed your quota, you will not be able to log back in\nType \"myquota\" to check your quota\n\n"
+      content: "{{ '\n' if ansible_facts.distribution != 'Ubuntu' else '' }}======================== NOTICE TO PAE-LABS USERS =========================\n* This is a PAE Labs Team managed resource\n* Your disk quota is 1GB\n  - If you exceed your quota, you will not be able to log back in\n  - Type 'myquota' to check your quota at any time\n* Use {{ vm.disk1_mount }}/transfer directory to transfer large files. Those files will be deleted after 7 days\n* Support is provided for the OS and network connectivity\n  - via Webex https://eurl.io/#WepRyPZqB\n  - via email pae-labs@cisco.com\n===========================================================================\n\n"
   - name: create the transfer directory under {{ vm.disk1_mount }}
     ansible.builtin.file:
       path: "{{ vm.disk1_mount }}/transfer"
@@ -45,5 +45,11 @@
       mode: 0777
       owner: root
       group: root
+  - name: create the job to delete files older than 7 days
+    ansible.builtin.cron:
+      name: "clean up transfer directory"
+      special_time: "daily"
+      job: "find {{ vm.disk1_mount }}/transfer -type f -mtime +7 -name '*' -execdir rm -- '{}' \\; >/dev/null"
+      user: root
   become: "{{ true if ansible_user != 'root' else false }}"
   tags: [ 'never', 'usrquota' ]

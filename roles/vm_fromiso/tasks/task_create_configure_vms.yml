@@ -56,4 +56,12 @@
       - disk_info.guest_disk_info | dict2items | length >= 2
   - name: flush handlers
     meta: flush_handlers
+  - name: delete /opt
+    ansible.builtin.file:
+      path: /opt
+      state: absent
+    become: "{{ true if ansible_user != 'root' else false }}"
+    when:
+      - build.version.os_iso|lower is search('ubuntu')
+      - vm.disk1_mount != '/opt'
   tags: vm_creation
