@@ -10,7 +10,7 @@
       until: vcr_vm_reachable2 is succeeded
       retries: 6
       delay: 10
-      when: vcr_vm_reachable is succeeded
+      when: "vcr_vm_reachable|default({'failed': true}) is skipped or vcr_vm_reachable|default({'failed': true}) is succeeded"
     - block:
       - name: check created VM reachable
         ansible.builtin.command: ping {{ netconfig.nic1.ipaddress if netconfig.nic1.gateway != '' else netconfig.nic2.ipaddress }} -c 1
@@ -41,7 +41,7 @@
             that: reg_vm_reachable is succeeded
         when:
           - build.version.os_iso|lower is search('ubuntu')
-      when: vcr_vm_reachable is failed
+      when: "vcr_vm_reachable|default({'failed': true}) is skipped or vcr_vm_reachable|default({'failed': true}) is failed"
     when: not ansible_check_mode
     become: "{{ 'yes' if host_os|lower is search('almalinux') else 'no' }}"
 
@@ -75,5 +75,5 @@
     when: file_item != ''
   delegate_to: localhost
   when:
-    - vcr_vm_reachable is failed or not crecon|default(true)
+    - "vcr_vm_reachable|default({'failed': true}) is skipped or vcr_vm_reachable|default({'failed': true}) is failed or not crecon|default(true)"
   tags: vm_creation

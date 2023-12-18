@@ -4,7 +4,6 @@
   - include_tasks: task_get_vm_datastore.yml
     when:
       - hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datastore_cluster'] == '' or hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['deptype'] == 'h'
-
   - block:
     - block:
       - include_tasks: task_unpack_ubuntu_iso.yml
@@ -20,8 +19,8 @@
     - include_tasks: task_deploy_iso_self_healing.yml
     when:
       - crecon | default(true) | bool
-      - vcr_vm_reachable is failed
-      - vcr_vm_connection|default({}) is failed
+      - "vcr_vm_reachable|default({'failed': true}) is skipped or vcr_vm_reachable|default({'failed': true}) is failed"
+      - "vcr_vm_connection|default({'failed': true}) is skipped or vcr_vm_connection|default({'failed': true}) is failed"
 
   - include_tasks: task_update_custom_attributes.yml
   - include_tasks: task_delete_gtw_nic1_self_healing.yml
@@ -36,8 +35,8 @@
     - include_tasks: task_add_gtw2.yml
     when:
       - crecon | default(true) | bool
-      - vcr_vm_reachable is failed
-      - vcr_vm_connection|default({}) is failed
+      - "vcr_vm_reachable|default({'failed': true}) is skipped or vcr_vm_reachable|default({'failed': true}) is failed"
+      - "vcr_vm_connection|default({'failed': true}) is skipped or vcr_vm_connection|default({'failed': true}) is failed"
   - block:
     - name: check disks order
       ansible.builtin.shell: |

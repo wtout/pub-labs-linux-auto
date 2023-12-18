@@ -1,63 +1,87 @@
 ---
 # tasks to check connectivity and credentials for hosts
-- name: check connection credentials
-  block:
-    - name: check VM reachable
-      ansible.builtin.command: ping {{ ansible_host }} -c 1
-      register: vcr_vm_reachable
-      check_mode: no
-      ignore_unreachable:  true
-      until: vcr_vm_reachable is succeeded
-      retries: "{{ 5 if reg_vm_exists is succeeded else 1 }}"
-      delay: "{{ 10 if reg_vm_exists is succeeded else 3 }}"
+- block:
+  - block:
+    - name: check if VM exists
+      community.vmware.vmware_guest_info:
+        hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
+        username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
+        password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
+        datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
+        name: "{{ vm.name }}"
+        schema: vsphere
+        validate_certs: no
+      register: reg_vm_exists
+      no_log: yes
       delegate_to: localhost
-      become: "{{ 'yes' if host_os|lower is search('almalinux') else 'no' }}"
-    - name: check original credentials
-      block:
-        - name: check VM credentials
-          ansible.builtin.wait_for_connection:
-            timeout: 10
-          register: vcr_vm_creds
-          check_mode: no
-      rescue:
-        - name: switch to {{ vm_admin_user }} user
-          ansible.builtin.set_fact:
-            ansible_user: "{{ vm_admin_user }}"
-            ansible_ssh_pass: "{{ vm_admin_pass }}"
-            ansible_become_pass: "{{ vm_admin_pass }}"
-          no_log: true
-        - name: check {{ vm_admin_user }} credentials
-          ansible.builtin.wait_for_connection:
-            timeout: 10
-  rescue:
-    - name: check user credentials
-      block:
-        - name: switch to {{ vm_admin_user }} user
-          ansible.builtin.set_fact:
-            ansible_user: "{{ vm_admin_user }}"
-            ansible_ssh_pass: "{{ vm_admin_pass }}"
-            ansible_become_pass: "{{ vm_admin_pass }}"
-          no_log: true
-        - name: check connection
-          ansible.builtin.wait_for:
-            port: 22
-            host: "{{ netconfig.nic1.ipaddress }}"
-            search_regex: OpenSSH
-            timeout: 10
-          register: vcr_vm_connection
-          check_mode: no
-          delegate_to: localhost
-        - ansible.builtin.debug:
-            msg: "VM hardening is enabled. Not creating the VM"
-        - name: set flag to not create and configure the VMs
-          ansible.builtin.set_fact:
-            crecon: false
-      rescue:
-        - name: revert user
-          ansible.builtin.set_fact:
-            ansible_user: "{{ credentials.username }}"
-            ansible_ssh_pass: "{{ credentials.password }}"
-            ansible_become_pass: "{{ credentials.password }}"
-          no_log: true
-          when: build.version.os_iso|lower is not search('ubuntu')
+    - include_tasks: task_poweron_vm.yml
+    rescue:
+      - name: switch to {{ vm_admin_user }} user
+        ansible.builtin.set_fact:
+          ansible_user: "{{ vm_admin_user }}"
+          ansible_ssh_pass: "{{ vm_admin_pass }}"
+          ansible_become_pass: "{{ vm_admin_pass }}"
+        no_log: true
+        when: build.version.os_iso|lower is search('ubuntu')
+  - name: check connection credentials
+    block:
+      - name: check VM reachable
+        ansible.builtin.command: ping {{ ansible_host }} -c 1
+        register: vcr_vm_reachable
+        check_mode: no
+        ignore_unreachable:  true
+        until: vcr_vm_reachable is succeeded
+        retries: "{{ 5 if reg_vm_exists is succeeded else 1 }}"
+        delay: "{{ 10 if reg_vm_exists is succeeded else 3 }}"
+        delegate_to: localhost
+        become: "{{ 'yes' if host_os|lower is search('almalinux') else 'no' }}"
+      - name: check original credentials
+        block:
+          - name: check VM credentials
+            ansible.builtin.wait_for_connection:
+              timeout: 10
+            register: vcr_vm_creds
+            check_mode: no
+        rescue:
+          - name: switch to {{ vm_admin_user }} user
+            ansible.builtin.set_fact:
+              ansible_user: "{{ vm_admin_user }}"
+              ansible_ssh_pass: "{{ vm_admin_pass }}"
+              ansible_become_pass: "{{ vm_admin_pass }}"
+            no_log: true
+          - name: check {{ vm_admin_user }} credentials
+            ansible.builtin.wait_for_connection:
+              timeout: 10
+    rescue:
+      - name: check user credentials
+        block:
+          - name: switch to {{ vm_admin_user }} user
+            ansible.builtin.set_fact:
+              ansible_user: "{{ vm_admin_user }}"
+              ansible_ssh_pass: "{{ vm_admin_pass }}"
+              ansible_become_pass: "{{ vm_admin_pass }}"
+            no_log: true
+          - name: check connection
+            ansible.builtin.wait_for:
+              port: 22
+              host: "{{ netconfig.nic1.ipaddress }}"
+              search_regex: OpenSSH
+              timeout: 10
+            register: vcr_vm_connection
+            check_mode: no
+            delegate_to: localhost
+          - ansible.builtin.debug:
+              msg: "VM hardening is enabled. Not creating the VM"
+          - name: set flag to not create and configure the VMs
+            ansible.builtin.set_fact:
+              crecon: false
+        rescue:
+          - name: revert user
+            ansible.builtin.set_fact:
+              ansible_user: "{{ credentials.username }}"
+              ansible_ssh_pass: "{{ credentials.password }}"
+              ansible_become_pass: "{{ credentials.password }}"
+            no_log: true
+            when: build.version.os_iso|lower is not search('ubuntu')
+    when: reg_vm_exists is succeeded
   tags: vm_creation

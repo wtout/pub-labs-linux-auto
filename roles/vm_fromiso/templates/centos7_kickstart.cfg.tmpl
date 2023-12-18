@@ -77,7 +77,6 @@ policycoreutils-python
 expect
 git
 screen
-sshpass
 %end
 
 %addon com_redhat_kdump --enable --reserve-mb='auto'
@@ -121,6 +120,9 @@ grep proxy /etc/yum.conf || sed -i 's|^\(\[main\]\)$|\1\nproxy={{ proxy_address 
 # Configure Chrony
 sed -i '/^server.*iburst$/d' /etc/chrony.conf
 sed -i 's/^\(# Please consider.*\)$/\1\n{% if 'dr' in group_names %} {%- if sysconfig.secondary.ntp_server|type_debug == 'list' %} {%- for line in sysconfig.secondary.ntp_server|join(',')|split(', ') %} {{- 'server ' + line + ' iburst\\n' -}} {% endfor -%} {% else %} {{- 'server ' + sysconfig.secondary.ntp_server + ' iburst\\n' -}} {% endif -%} {% else %} {%- if sysconfig.primary.ntp_server|type_debug == 'list' %} {%- for line in sysconfig.primary.ntp_server|join(',')|split(', ') %} {{- 'server ' + line + ' iburst\\n' -}} {% endfor -%} {% else %} {{- 'server ' + sysconfig.primary.ntp_server + ' iburst\\n' -}} {% endif -%} {% endif -%}/' /etc/chrony.conf
+
+# install sshpass
+yum install -y sshpass
 
 # Configure hosts.allow
 sed -i 's/^\(\w.*\)$/#\1/' /etc/hosts.allow

@@ -59,7 +59,6 @@
         - creds_status|default('') is not search('does not exist')
       fail_msg: "{{ creds_status|default('') }}"
   - block:
-#    - include_tasks: task_install_ldap_pkgs.yml
     - include_tasks: task_update_hostname.yml
     - include_tasks: task_join_domain.yml
     when: join_domain|default(false)
