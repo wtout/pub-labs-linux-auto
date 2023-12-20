@@ -51,7 +51,7 @@
   - name: get the Linux distribution
     ansible.builtin.setup:
       filter:
-        - 'distribution'
+        - 'distribution*'
   - block:
     - name: check if domain admins are allowed to do sudo
       ansible.builtin.lineinfile:

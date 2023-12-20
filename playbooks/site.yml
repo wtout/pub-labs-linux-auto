@@ -76,6 +76,10 @@
           name: usrquota
         when: set_quota | default(false) | bool
         tags: [ 'never', 'usrquota' ]
+      - include_role:
+          name: amp_connector
+        when: install_connector | default(false) | bool
+        tags: [ 'never', 'amp_connector' ]
       when: deploy|default(false)|bool
 
 # Play to delete the VMs
@@ -86,6 +90,10 @@
 
   tasks:
     - block:
+      - include_role:
+          name: amp_connector
+        when: remove_connector | default(false) | bool
+        tags: [ 'never', 'amp_connector' ]
       - include_role:
           name: usrquota
         when: unset_quota | default(false) | bool
