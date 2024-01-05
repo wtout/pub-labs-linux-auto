@@ -1,0 +1,22 @@
+---
+# tasks file to remove the desktop package
+- block:
+  - name: undefine xfce4 as the default XSession type
+    ansible.builtin.file:
+      path: /etc/profile.d/setxsession.sh
+      state: absent
+  - name: remove the ubuntu-desktop packages
+    ansible.builtin.apt:
+      pkg:
+        - ubuntu-desktop
+        - xfce4
+        - xfce4-goodies
+        - gdm3
+        - xrdp
+      state: absent
+    notify:
+      - reboot vm
+  when: ansible_facts.distribution == 'Ubuntu'
+  become: "{{ true if ansible_user != 'root' else false }}"
+  tags: [ 'never', 'udesktop' ]
+

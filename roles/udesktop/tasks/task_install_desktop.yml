@@ -1,0 +1,51 @@
+---
+# tasks file to install the desktop package
+- block:
+  - name: update and upgrade
+    ansible.builtin.apt:
+      name: '*'
+      state: latest
+      update_cache: yes
+  - name: install the ubuntu-desktop packages
+    ansible.builtin.apt:
+      pkg:
+        - ubuntu-desktop
+        - xfce4
+        - xfce4-goodies
+        - gdm3
+        - xrdp
+      state: latest
+    notify:
+      - start and enable services
+      - reboot vm
+  - name: allow access to RDP port 3389
+    community.general.ufw:
+      rule: allow
+      port: '3389'
+      proto: tcp
+  - name: change setings in /etc/sssd/sssd.conf
+    ansible.builtin.replace:
+      path: '/etc/sssd/sssd.conf'
+      regexp: '^({{ line_item.param }} =).*$'
+      replace: '\g<1> {{ line_item.value }}'
+    loop:
+      - { param: 'access_provider', value: 'simple' }
+    loop_control:
+      loop_var: line_item
+    notify: restart sssd
+  - name: define xfce4 as the default XSession type
+    ansible.builtin.copy:
+      dest: /etc/profile.d/setxsession.sh
+      content: 'echo "xfce4-session" > ${HOME}/.xsession'
+  - name: set the number of xfce4 workspaces to 1
+    ansible.builtin.replace:
+      path: /usr/share/xfwm4/defaults
+      regexp: '^(workspace_count=).*$'
+      replace: '\g<1>1'
+  - name: fix authentication is required popup
+    ansible.builtin.copy:
+      dest: /etc/polkit-1/localauthority/50-local.d/45-allow-colord.pkla 
+      content: '[Allow Colord all Users]\nIdentity=unix-user:*\nAction=org.freedesktop.color-manager.create-device;org.freedesktop.color-manager.create-profile;org.freedesktop.color-manager.delete-device;org.freedesktop.color-manager.delete-profile;org.freedesktop.color-manager.modify-device;org.freedesktop.color-manager.modify-profile\nResultAny=no\nResultInactive=no\nResultActive=yes'
+  when: ansible_facts.distribution == 'Ubuntu'
+  become: "{{ true if ansible_user != 'root' else false }}"
+  tags: [ 'never', 'udesktop' ]

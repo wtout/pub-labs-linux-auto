@@ -89,6 +89,22 @@
     - "'stack' in group_names or (build.disaster_recovery and 'dr' in group_names)"
   tags: [ 'never', 'amp_connector' ]
 
+- name: define install_desktop
+  ansible.builtin.set_fact:
+    install_desktop: true
+  when:
+    - deploy | default(false) | bool
+    - "'stack' in group_names or (build.disaster_recovery and 'dr' in group_names)"
+  tags: [ 'never', 'udesktop' ]
+
+- name: define remove_desktop
+  ansible.builtin.set_fact:
+    remove_desktop: true
+  when:
+    - rollback | default(false) | bool
+    - "'stack' in group_names or (build.disaster_recovery and 'dr' in group_names)"
+  tags: [ 'never', 'udesktop' ]
+
 - name: define add_dns_records
   set_fact:
     add_dns_records: true

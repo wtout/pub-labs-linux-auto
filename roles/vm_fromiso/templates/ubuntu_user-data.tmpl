@@ -27,7 +27,7 @@ autoinstall:
   identity:
     hostname: {{ vm.name }}
     password: {{ vm_admin_pass | password_hash('sha512') }}
-    realname: PAE Labs Team
+    realname: PAE Labs Admin
     username: {{ vm_admin_user }}
   kernel:
     package: linux-generic

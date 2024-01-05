@@ -33,6 +33,7 @@
           - 'Joining the domain failed'
           - ''
           - "{{ reg_join_domain|replace(infra_admin_pass,'obfuscated') }}"
+      when: reg_join_domain.stderr is not search("you must manually run 'dpkg --configure -a' to correct the problem")
     always:
     - ansible.builtin.assert:
         that:
@@ -158,5 +159,7 @@
         DEBIAN_FRONTEND: 'noninteractive'
     when:
       - ansible_facts.distribution == 'Ubuntu'
+  - name: flush handlers
+    meta: flush_handlers
   become: "{{ true if ansible_user != 'root' else false }}"
   tags: [ 'never', 'ldap_integration' ]

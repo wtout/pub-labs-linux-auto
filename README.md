@@ -15,7 +15,7 @@ The deployment procedure has to be the same for all deployments. Ansible code co
 
 ### Installation ###
 
-On a newly installed Linux **CentOS 7.7+** VM that has docker installed and configured and that can access the internet, container repo and the VM infrastructure, run the following command to download and start the container hosting the automation code:
+On a newly installed Linux **CentOS 7.7+, AlmaLinux 8/9 or Ubuntu 22.04.03** VM that has docker installed and configured and that can access the internet, container repo and the VM infrastructure, run the following command to download and start the container hosting the automation code:
 
 1- Install the git package
 
@@ -109,6 +109,7 @@ The list of roles used in the playbooks:
   - **ldap_integration**: joins the VM to the domain to allow AD users to login
   - **usrquota**: sets user's home directory quota
   - **amp_connector**: Installs the Cisco AMP connector
+  - **udesktop**: Installs and configures the XFCE desktop manager on Ubuntu
 
 To execute specific role(s), add "_--tags 'role1,role2,etc...'_" as argument to the script.
 
