@@ -46,6 +46,34 @@
     ansible.builtin.copy:
       dest: /etc/polkit-1/localauthority/50-local.d/45-allow-colord.pkla 
       content: '[Allow Colord all Users]\nIdentity=unix-user:*\nAction=org.freedesktop.color-manager.create-device;org.freedesktop.color-manager.create-profile;org.freedesktop.color-manager.delete-device;org.freedesktop.color-manager.delete-profile;org.freedesktop.color-manager.modify-device;org.freedesktop.color-manager.modify-profile\nResultAny=no\nResultInactive=no\nResultActive=yes'
+  - name: copy XFCE applications menu customization file
+    ansible.builtin.copy:
+      dest: /etc/skel/.config/menus/
+      src: "{{ role_path }}/files/xfce-applications.menu"
+  - name: start terminal-emulator at startup
+    ansible.builtin.copy:
+      remote_src: yes
+      dest: /etc/skel/.config/autostart/
+      src: /usr/share/applications/xfce4-terminal-emulator.desktop
+  - name: create the XFCE applications menu customization script
+    ansible.builtin.copy:
+      dest: /etc/profile.d/setxfce_app_menu.sh
+      src: "{{ role_path }}/files/setxfce_app_menu.sh"
+  - name: enable scripts under /etc/profile.d/ are executed with non-login interactive shells
+    ansible.builtin.blockinfile:
+      path: /etc/bash.bashrc
+      marker_begin: 'BEGIN PROFILE.D EXECUTION'
+      marker_end: 'END PROFILE.D EXECUTION'
+      marker: '# {mark}'
+      block: |
+        if [ -d /etc/profile.d ]; then
+          for i in /etc/profile.d/*.sh; do
+            if [ -r $i ]; then
+              . $i
+            fi
+          done
+          unset i
+        fi
   when: ansible_facts.distribution == 'Ubuntu'
   become: "{{ true if ansible_user != 'root' else false }}"
   tags: [ 'never', 'udesktop' ]

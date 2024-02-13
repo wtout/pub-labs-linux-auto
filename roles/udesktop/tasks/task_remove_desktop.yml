@@ -5,6 +5,22 @@
     ansible.builtin.file:
       path: /etc/profile.d/setxsession.sh
       state: absent
+  - name: remove the XFCE applications menu customization files
+    ansible.builtin.file:
+      path: "{{ file_item }}"
+      state: absent
+    loop:
+      - /etc/skel/.config
+      - /etc/profile.d/setxfce_app_menu.sh
+    loop_control:
+      loop_var: file_item
+  - name: disable scripts under /etc/profile.d/ are executed with non-login interactive shells
+    ansible.builtin.blockinfile:
+      path: /etc/bash.bashrc
+      marker_begin: 'BEGIN PROFILE.D EXECUTION'
+      marker_end: 'END PROFILE.D EXECUTION'
+      marker: '# {mark}'
+      state: absent
   - name: remove the ubuntu-desktop packages
     ansible.builtin.apt:
       pkg:
