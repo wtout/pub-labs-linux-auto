@@ -72,4 +72,3 @@
       that:
         - reg_leave_domain is succeeded
   become: "{{ true if ansible_user != 'root' else false }}"
-  tags: [ 'never', 'ldap_integration' ]

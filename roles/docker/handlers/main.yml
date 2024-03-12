@@ -5,7 +5,6 @@
     name: docker
     state: present
   become: "{{ true if ansible_user != 'root' else false }}"
-  tags: [ 'never', 'docker' ]
 
 - name: add user to docker group
   ansible.builtin.user:
@@ -13,7 +12,6 @@
     groups: docker
     append: yes
   become: "{{ true if ansible_user != 'root' else false }}"
-  tags: [ 'never', 'docker' ]
 
 - name: create docker.service.d directory if it does not exist
   ansible.builtin.file:
@@ -21,7 +19,6 @@
     state: directory
   become: "{{ true if ansible_user != 'root' else false }}"
   listen: create docker service directory
-  tags: [ 'never', 'docker' ]
 
 - name: add proxy to docker
   ansible.builtin.copy:
@@ -30,7 +27,6 @@
     force: yes
   become: "{{ true if ansible_user != 'root' else false }}"
   when: lookup('env', 'MYPROXY') != ''
-  tags: [ 'never', 'docker' ]
 
 - name: Start and enable docker
   ansible.builtin.systemd:
@@ -40,11 +36,9 @@
     daemon_reload: yes
   become: "{{ true if ansible_user != 'root' else false }}"
   listen: start docker
-  tags: [ 'never', 'docker' ]
 
 - name: reboot the node
   ansible.builtin.reboot:
     post_reboot_delay: 10
     reboot_timeout: 60
   become: "{{ true if ansible_user != 'root' else false }}"
-  tags: [ 'never', 'docker' ]

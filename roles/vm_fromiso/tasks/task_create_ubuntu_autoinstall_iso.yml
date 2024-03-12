@@ -27,4 +27,3 @@
     args:
       chdir: "{{ role_path }}/files/{{ vm.name }}-tmpdir/source_files"
   delegate_to: localhost
-  tags: vm_creation

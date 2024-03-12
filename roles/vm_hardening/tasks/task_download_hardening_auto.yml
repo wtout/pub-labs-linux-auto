@@ -52,4 +52,3 @@
   environment:
     http_proxy: "{{ proxy_address|default('') }}"
     https_proxy: "{{ proxy_address|default('') }}"
-  tags: vm_hardening

@@ -16,4 +16,3 @@
       force: yes
       validate_certs: no
   delegate_to: localhost
-  tags: vm_creation

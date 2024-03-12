@@ -13,4 +13,3 @@
     loop_control:
       loop_var: line_item
   delegate_to: localhost
-  tags: vm_creation

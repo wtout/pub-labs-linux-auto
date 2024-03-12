@@ -41,4 +41,3 @@
             - not disk_rebuild|default(false)
           success_msg: 'Disks updated successfully'
           fail_msg: 'Unable to update the disks successfully'
-  tags: vm_creation

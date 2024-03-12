@@ -67,4 +67,3 @@
     when:
       - build.disaster_recovery
       - "'drvcenter' in group_names"
-  tags: ['capcheck', 'vm_creation']

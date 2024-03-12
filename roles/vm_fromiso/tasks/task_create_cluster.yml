@@ -37,4 +37,3 @@
       loop_var: host_item
     register: move_hosts
   delegate_to: localhost
-  tags: vm_creation

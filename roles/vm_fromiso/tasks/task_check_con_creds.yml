@@ -84,4 +84,3 @@
             no_log: true
             when: build.version.os_iso|lower is not search('ubuntu')
     when: reg_vm_exists is succeeded
-  tags: vm_creation

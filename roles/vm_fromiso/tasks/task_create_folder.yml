@@ -14,4 +14,3 @@
       validate_certs: no
     register: cust_folder
   delegate_to: localhost
-  tags: vm_creation

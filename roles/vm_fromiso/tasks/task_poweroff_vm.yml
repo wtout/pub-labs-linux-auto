@@ -16,4 +16,3 @@
     http_proxy: ''
     https_proxy: ''
   delegate_to: localhost
-  tags: vm_creation

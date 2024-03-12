@@ -17,4 +17,3 @@
       loop_var: host_item
     run_once: true
     when:  build.disaster_recovery
-  tags: ['always', 'vm_facts']

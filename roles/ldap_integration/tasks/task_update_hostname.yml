@@ -16,4 +16,3 @@
       path: /etc/hosts
       line: "{{ netconfig.nic1.ipaddress if vm.name is not search('csr') else netconfig.nic3.ipaddress }}   {{ vm.name }} {{ vm.name }}.{{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }}"
   become: true
-  tags: [ 'never', 'ldap_integration' ]

@@ -24,4 +24,3 @@
   - name: delete consecutive blank lines
     ansible.builtin.shell: sed -i 'N; /^\n$/d; P; D' /etc/sudoers
   become: "{{ true if ansible_user != 'root' else false }}"
-  tags: [ 'never', 'usrquota' ]

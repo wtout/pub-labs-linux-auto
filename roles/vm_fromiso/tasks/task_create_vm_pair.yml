@@ -15,4 +15,3 @@
     loop_control:
       loop_var: seq_item
     when: inventory_hostname == groups[vm_group][seq_item] or ((groups[vm_group]|length - 1) >= (seq_item + 1) and inventory_hostname == groups[vm_group][seq_item + 1])
-  tags: vm_creation

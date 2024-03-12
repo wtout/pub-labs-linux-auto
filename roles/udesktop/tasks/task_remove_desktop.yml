@@ -34,5 +34,3 @@
       - reboot vm
   when: ansible_facts.distribution == 'Ubuntu'
   become: "{{ true if ansible_user != 'root' else false }}"
-  tags: [ 'never', 'udesktop' ]
-

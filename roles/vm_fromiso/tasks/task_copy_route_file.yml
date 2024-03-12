@@ -10,4 +10,3 @@
     ansible.builtin.command: grep -i address /etc/sysconfig/network-scripts/route-ens160
     register: copy_file_status
   ignore_errors: true
-  tags: vm_creation

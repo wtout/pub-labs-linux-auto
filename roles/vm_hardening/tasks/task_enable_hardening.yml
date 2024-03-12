@@ -52,4 +52,3 @@
         success_msg: 'Hardening is enabled'
       when: not ansible_check_mode
     when: reg_copy_pkg.results|select('search', 'not writable')|list|length == 0
-  tags: vm_hardening

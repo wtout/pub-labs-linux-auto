@@ -50,4 +50,3 @@
       vm_ds: "{{ vm_ds_names[1] }}"
     when:
       - host_index|int % 2 == 0
-  tags: vm_creation

@@ -67,4 +67,3 @@
     - netconfig.nic1.gateway == ''
     - netconfig.nic1.ipaddress != ''
     - netconfig.nic2.ipaddress != ''
-  tags: vm_creation

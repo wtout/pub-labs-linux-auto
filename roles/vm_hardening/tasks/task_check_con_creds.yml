@@ -57,4 +57,3 @@
         - name: abort hardening
           ansible.builtin.fail:
             msg: 'Unable to connect to the VM. Check the connection details or that the VM is created. Aborting!'
-  tags: vm_hardening

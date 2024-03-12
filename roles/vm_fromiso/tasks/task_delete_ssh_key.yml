@@ -14,4 +14,3 @@
       state: absent
     become: "{{ 'yes' if host_os|lower is search('almalinux') else 'no' }}"
   delegate_to: localhost
-  tags: vm_creation

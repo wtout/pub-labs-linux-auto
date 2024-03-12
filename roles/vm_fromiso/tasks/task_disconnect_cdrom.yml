@@ -26,4 +26,3 @@
   environment:
     http_proxy: ''
     https_proxy: ''
-  tags: vm_creation

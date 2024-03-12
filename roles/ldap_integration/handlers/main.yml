@@ -6,7 +6,6 @@
     state: restarted
     daemon_reload: yes
   become: "{{ true if ansible_user != 'root' else false }}"
-  tags: [ 'never', 'ldap_integration' ]
 
 - name: restart sshd
   systemd:
@@ -14,4 +13,3 @@
     state: restarted
     daemon_reload: yes
   become: "{{ true if ansible_user != 'root' else false }}"
-  tags: [ 'never', 'ldap_integration' ]

@@ -8,4 +8,3 @@
   - name: Build kickstart iso
     ansible.builtin.shell: $(ls /usr/local/bin/|grep python|grep -v config) '{{ role_path }}/files/kickstart-iso.py' '{{ role_path }}/files/{{ vm.name }}-kickstart.cfg' '{{ role_path }}/files/{{ vm.name }}-kickstart.iso'
   delegate_to: localhost
-  tags: vm_creation

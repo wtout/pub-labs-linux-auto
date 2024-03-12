@@ -82,4 +82,3 @@
       - include_tasks: task_deploy_iso.yml
 
   delegate_to: localhost
-  tags: vm_creation

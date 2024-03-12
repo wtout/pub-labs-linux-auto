@@ -10,4 +10,3 @@
       src: "templates/ubuntu_user-data.tmpl"
       dest: "{{ role_path }}/files/{{ vm.name }}-tmpdir/source_files/server/user-data"
   delegate_to: localhost
-  tags: vm_creation

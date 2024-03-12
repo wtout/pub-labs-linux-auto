@@ -15,4 +15,3 @@
     when:
       - inventory_hostname is search('dr')
       - build.disaster_recovery
-  tags: ['always', 'vm_facts']

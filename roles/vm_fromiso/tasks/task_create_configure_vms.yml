@@ -63,4 +63,3 @@
     when:
       - build.version.os_iso|lower is search('ubuntu')
       - vm.disk1_mount != '/opt'
-  tags: vm_creation

@@ -24,4 +24,3 @@
       information: "{{ information | combine(new_item, recursive=true) }}"
     vars:
       new_item: "{'resources': \"{{ hosts_list | sort }}\"}"
-  tags: ['capcheck', 'vm_creation']

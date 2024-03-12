@@ -52,5 +52,3 @@
       job: 'CURDATE=$(date +%s) && for f in $(find {{ vm.disk1_mount }}/transfer -type f -print); do FILEDATE=$(stat -c "%W" ${f}); if [[ $((${CURDATE} - ${FILEDATE})) -ge $((7 * 24 * 3600)) ]]; then rm -f ${f}; fi; done >/dev/null'
       user: root
   become: "{{ true if ansible_user != 'root' else false }}"
-  tags: [ 'never', 'usrquota' ]
-

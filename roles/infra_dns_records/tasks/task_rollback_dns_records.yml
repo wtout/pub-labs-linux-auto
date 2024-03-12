@@ -113,4 +113,3 @@
       - build.disaster_recovery
       - "'dr' in group_names"
   delegate_to: localhost
-  tags: [ 'infra_dns_records', 'vm_creation' ]

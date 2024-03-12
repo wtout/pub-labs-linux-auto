@@ -88,4 +88,3 @@
       - task_item.value != ''
       - task_item.value != 'None'
     no_log: true
-  tags: ['always', 'vm_facts']

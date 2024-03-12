@@ -6,7 +6,6 @@
     state: restarted
     daemon_reload: yes
   become: "{{ true if ansible_user != 'root' else false }}"
-  tags: vm_creation
 
 - name: expand disk0
   ansible.builtin.shell: |
@@ -19,14 +18,12 @@
     partprobe
     xfs_growfs $(grep ' / ' /etc/fstab | grep -v '#' | awk '{print $2}')
   become: "{{ true if ansible_user != 'root' else false }}"
-  tags: vm_creation
 
 - name: reboot vm
   ansible.builtin.reboot:
     post_reboot_delay: 10
     reboot_timeout: 60
   become: "{{ true if ansible_user != 'root' else false }}"
-  tags: vm_creation
 
 - name: expand disk1
   ansible.builtin.shell: |
@@ -47,7 +44,6 @@
   args:
     executable: /bin/bash
   become: "{{ true if ansible_user != 'root' else false }}"
-  tags: vm_creation
 
 - name: add disk1
   ansible.builtin.shell: |
@@ -59,7 +55,6 @@
     {% endif %}
   become: "{{ true if ansible_user != 'root' else false }}"
   notify: create disk1 filesystem
-  tags: vm_creation
 
 - name: create disk1 filesystem
   ansible.builtin.filesystem:
@@ -67,7 +62,6 @@
     device: /dev/sdb1
   become: "{{ true if ansible_user != 'root' else false }}"
   notify: get disk1 UUID
-  tags: vm_creation
 
 - name: get disk1 UUID
   ansible.builtin.shell: |
@@ -75,7 +69,6 @@
   register: reg_disk1_uuid
   become: "{{ true if ansible_user != 'root' else false }}"
   notify: set disk1 mount points
-  tags: vm_creation
 
 - name: set disk1 mount points
   ansible.posix.mount:
@@ -88,7 +81,6 @@
     passno: '2'
   become: "{{ true if ansible_user != 'root' else false }}"
   notify: set permissions and ownership of disk1
-  tags: vm_creation
 
 - name: set permissions and ownership of disk1
   ansible.builtin.file:
@@ -98,7 +90,6 @@
     owner: root
     group: root
   become: "{{ true if ansible_user != 'root' else false }}"
-  tags: vm_creation
 
 - name: expand disk2
   ansible.builtin.shell: |
@@ -119,7 +110,6 @@
   args:
     executable: /bin/bash
   become: "{{ true if ansible_user != 'root' else false }}"
-  tags: vm_creation
 
 - name: add disk2
   ansible.builtin.shell: |
@@ -131,7 +121,6 @@
     {% endif %}
   become: "{{ true if ansible_user != 'root' else false }}"
   notify: create disk2 filesystem
-  tags: vm_creation
 
 - name: create disk2 filesystem
   ansible.builtin.filesystem:
@@ -139,7 +128,6 @@
     device: /dev/sdc1
   become: "{{ true if ansible_user != 'root' else false }}"
   notify: get disk2 UUID
-  tags: vm_creation
 
 - name: get disk2 UUID
   ansible.builtin.shell: |
@@ -147,7 +135,6 @@
   register: reg_disk2_uuid
   become: "{{ true if ansible_user != 'root' else false }}"
   notify: set disk2 mount points
-  tags: vm_creation
 
 - name: set disk2 mount points
   ansible.posix.mount:
@@ -160,7 +147,6 @@
     passno: '2'
   become: "{{ true if ansible_user != 'root' else false }}"
   notify: set permissions and ownership of disk2
-  tags: vm_creation
 
 - name: set permissions and ownership of disk2
   ansible.builtin.file:
@@ -170,7 +156,6 @@
     owner: root
     group: root
   become: "{{ true if ansible_user != 'root' else false }}"
-  tags: vm_creation
 
 - name: expand disk3
   ansible.builtin.shell: |
@@ -191,7 +176,6 @@
   args:
     executable: /bin/bash
   become: "{{ true if ansible_user != 'root' else false }}"
-  tags: vm_creation
 
 - name: add disk3
   ansible.builtin.shell: |
@@ -203,7 +187,6 @@
     {% endif %}
   become: "{{ true if ansible_user != 'root' else false }}"
   notify: create disk3 filesystem
-  tags: vm_creation
 
 - name: create disk3 filesystem
   ansible.builtin.filesystem:
@@ -211,7 +194,6 @@
     device: /dev/sdd1
   become: "{{ true if ansible_user != 'root' else false }}"
   notify: get disk3 UUID
-  tags: vm_creation
 
 - name: get disk3 UUID
   ansible.builtin.shell: |
@@ -219,7 +201,6 @@
   register: reg_disk3_uuid
   become: "{{ true if ansible_user != 'root' else false }}"
   notify: set disk3 mount points
-  tags: vm_creation
 
 - name: set disk3 mount points
   ansible.posix.mount:
@@ -232,7 +213,6 @@
     passno: '2'
   become: "{{ true if ansible_user != 'root' else false }}"
   notify: set permissions and ownership of disk3
-  tags: vm_creation
 
 - name: set permissions and ownership of disk3
   ansible.builtin.file:
@@ -242,4 +222,3 @@
     owner: root
     group: root
   become: "{{ true if ansible_user != 'root' else false }}"
-  tags: vm_creation

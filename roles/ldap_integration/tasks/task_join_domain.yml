@@ -162,4 +162,3 @@
   - name: flush handlers
     meta: flush_handlers
   become: "{{ true if ansible_user != 'root' else false }}"
-  tags: [ 'never', 'ldap_integration' ]

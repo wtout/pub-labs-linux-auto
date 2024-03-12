@@ -155,4 +155,3 @@
         - information.cluster != 'None'
     when:
       - cluster_status.msg|default('') is not search('Failed to find cluster')
-  tags: vm_creation

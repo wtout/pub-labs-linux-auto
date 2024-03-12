@@ -223,4 +223,3 @@
       - deploy_iso is succeeded
       - reg_vmguest_info is failed
   delegate_to: localhost
-  tags: vm_creation

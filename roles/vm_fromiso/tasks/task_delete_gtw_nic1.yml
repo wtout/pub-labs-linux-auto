@@ -46,4 +46,3 @@
     - netconfig.nic1.ipaddress != ''
     - netconfig.nic2.ipaddress != ''
   delegate_to: localhost
-  tags: vm_creation

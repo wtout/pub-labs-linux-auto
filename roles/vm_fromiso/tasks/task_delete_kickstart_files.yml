@@ -76,4 +76,3 @@
   delegate_to: localhost
   when:
     - "vcr_vm_reachable|default({'failed': true}) is skipped or vcr_vm_reachable|default({'failed': true}) is failed or not crecon|default(true)"
-  tags: vm_creation

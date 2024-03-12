@@ -17,5 +17,3 @@
       state: absent
     when: ansible_facts.distribution == 'CentOS'
   become: "{{ true if ansible_user != 'root' else false }}"
-  tags: [ 'never', 'usrquota' ]
-

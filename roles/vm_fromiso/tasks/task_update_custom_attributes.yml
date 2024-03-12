@@ -36,4 +36,3 @@
         when:
           - reg_add_attribute.module_stderr is search('Permission to perform this operation was denied')
   delegate_to: localhost
-  tags: vm_creation

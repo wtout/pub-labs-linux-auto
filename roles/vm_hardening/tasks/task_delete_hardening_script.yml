@@ -6,4 +6,3 @@
       path: "{{ role_path }}/files/{{ vm.name }}-hardening.sh"
       state: absent
   delegate_to: localhost
-  tags: vm_creation

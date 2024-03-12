@@ -34,4 +34,3 @@
         loop_var: line_item
     when: reg_joined is succeeded
   become: "{{ true if ansible_user != 'root' else false }}"
-  tags: [ 'never', 'docker' ]

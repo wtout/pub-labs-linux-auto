@@ -186,4 +186,3 @@
     - not ansible_check_mode
     - vm.disk1|float > 0 or vm.disk2|float > 0 or vm.disk3|float > 0
   delegate_to: localhost
-  tags: vm_creation

@@ -15,4 +15,3 @@
   - name: define folder_empty
     ansible.builtin.set_fact:
       folder_empty: "{{ folder_empty|default(true) and vm_info.virtual_machines == [] }}"
-  tags: vm_creation
