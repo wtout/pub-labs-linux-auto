@@ -21,7 +21,6 @@
       - crecon | default(true) | bool
       - "vcr_vm_reachable|default({'failed': true}) is skipped or vcr_vm_reachable|default({'failed': true}) is failed"
       - "vcr_vm_connection|default({'failed': true}) is skipped or vcr_vm_connection|default({'failed': true}) is failed"
-
   - include_tasks: task_update_custom_attributes.yml
   - include_tasks: task_delete_gtw_nic1_self_healing.yml
   - include_tasks: task_update_disks_self_healing.yml

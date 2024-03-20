@@ -73,10 +73,12 @@
   - name: check if number of VMs value is valid
     ansible.builtin.assert:
       that:
-        - "environment_definition.build.{{ loop_item.name }} | int >= 1"
-        - "environment_definition.build.{{ loop_item.name }} | int <= loop_item.max_value|int"
-        - "environment_definition.build.{{ loop_item.name }} | int % 2 >= 0"
+        - "parval|int >= 1"
+        - "parval|int <= loop_item.max_value|int"
+        - "parval|int % 2 >= 0"
       fail_msg: "The value {{ environment_definition['build'][loop_item.name|split('.')|first][loop_item.name|split('.')|last] }} for environment_definition.build.{{ loop_item.name }} is not valid. Only numbers >= 1 are valid"
+    vars:
+      parval: "{{ environment_definition['build'][loop_item.name|split('.')|first][loop_item.name|split('.')|last] }}"
     loop:
       - { 'name': 'primary.number_of_lnxvm', 'max_value': 100, 'state': "{{ 'active' if ansible_play_hosts|reject('search','dr')|list|length >= 1 else 'disabled' }}" }
       - { 'name': 'secondary.number_of_lnxvm', 'max_value': "{{ 100 if environment_definition.build.disaster_recovery else 0 }}", 'state': "{{ 'active' if environment_definition.build.disaster_recovery else 'disabled' }}" }

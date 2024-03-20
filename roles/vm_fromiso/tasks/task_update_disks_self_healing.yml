@@ -25,10 +25,7 @@
     rescue:
       - include_tasks: task_delete_ssh_key.yml
       - include_tasks: task_delete_vm.yml
-      - include_tasks: task_deploy_iso.yml
-        when: build.version.os_iso|lower is not search('ubuntu')
-      - include_tasks: task_deploy_ubuntuiso.yml
-        when: build.version.os_iso|lower is search('ubuntu')
+      - include_tasks: task_deploy_iso_self_healing.yml
       - include_tasks: task_delete_gtw_nic1_self_healing.yml
       - include_tasks: task_update_disks.yml
     always:

@@ -3,8 +3,8 @@
     - name: check VM reachable
       ansible.builtin.command: ping {{ ansible_host }} -c 1
       register: vh_vm_reachable
-      become: yes
       check_mode: no
+      become: "{{ 'yes' if host_os|lower is search('almalinux') else 'no' }}"
       delegate_to: localhost
     - name: check original credentials
       block:

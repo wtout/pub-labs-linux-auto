@@ -31,8 +31,8 @@
         check_mode: no
         ignore_unreachable:  true
         until: vcr_vm_reachable is succeeded
-        retries: "{{ 5 if reg_vm_exists is succeeded else 1 }}"
-        delay: "{{ 10 if reg_vm_exists is succeeded else 3 }}"
+        retries: 5
+        delay: 10
         delegate_to: localhost
         become: "{{ 'yes' if host_os|lower is search('almalinux') else 'no' }}"
       - name: check original credentials

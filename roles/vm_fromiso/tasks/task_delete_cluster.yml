@@ -49,7 +49,7 @@
           task_check_cluster_empty.yml
         apply:
           vars:
-            - vm_name: "{{ vm_item }}"
+            vm_name: "{{ vm_item }}"
       loop: "{{ vm_names }}"
       loop_control:
         loop_var: vm_item
