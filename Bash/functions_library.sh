@@ -183,32 +183,38 @@ function check_image() {
 }
 
 function check_container() {
-	$(docker_cmd) ps -a | grep -w ${CONTAINERNAME} &>/dev/null
+	local CNTNRNAME
+	CNTNRNAME="${1}"
+	$(docker_cmd) ps -a | grep -w "${CNTNRNAME}" &>/dev/null
 	return ${?}
 }
 
 function start_container() {
-	if [[ $(check_container; echo "${?}") -ne 0 ]]
+	local CNTNRNAME
+	CNTNRNAME="${1}"
+	if [[ $(check_container "${CNTNRNAME}"; echo "${?}") -ne 0 ]]
 	then
 		[[ ! -d ${HOME}/.ssh ]] && mkdir ${HOME}/.ssh
-		echo "Starting container ${CONTAINERNAME}"
+		echo "Starting container ${CNTNRNAME}"
 		[[ $- =~ x ]] && debug=1 && [[ "${SECON}" == "true" ]] && set +x
 		if [[ "${ANSIBLE_LOG_PATH}" == "" ]]
 		then
-			$(docker_cmd) run --rm -e MYPROXY=${PROXY_ADDRESS} -e MYHOME=${HOME} -e MYHOSTNAME=$(hostname) -e MYCONTAINERNAME=${CONTAINERNAME} -e MYIP=$(get_host_ip) --user ansible -w ${CONTAINERWD} -v /data:/data:z -v /tmp:/tmp:z -v ${PWD}:${CONTAINERWD}:z --name ${CONTAINERNAME} -t -d --entrypoint /bin/bash ${CONTAINERREPO}:${ANSIBLE_VERSION}
+			$(docker_cmd) run --rm -e MYPROXY=${PROXY_ADDRESS} -e MYHOME=${HOME} -e MYHOSTNAME=$(hostname) -e MYCONTAINERNAME=${CNTNRNAME} -e MYIP=$(get_host_ip) --user ansible -w ${CONTAINERWD} -v /data:/data:z -v /tmp:/tmp:z -v ${PWD}:${CONTAINERWD}:z --name ${CNTNRNAME} -t -d --entrypoint /bin/bash ${CONTAINERREPO}:${ANSIBLE_VERSION}
 		else
-			$(docker_cmd) run --rm -e ANSIBLE_LOG_PATH=${ANSIBLE_LOG_PATH} -e ANSIBLE_FORKS=${NUM_HOSTSINPLAY} -e MYPROXY=${PROXY_ADDRESS} -e MYHOME=${HOME} -e MYHOSTNAME=$(hostname) -e MYCONTAINERNAME=${CONTAINERNAME} -e MYIP=$(get_host_ip) -e MYHOSTOS=$(get_os) --user ansible -w ${CONTAINERWD} -v /data:/data:z -v /tmp:/tmp:z -v ${HOME}/.ssh:/home/ansible/.ssh:z -v ${PWD}:${CONTAINERWD}:z --name ${CONTAINERNAME} -t -d --entrypoint /bin/bash ${CONTAINERREPO}:${ANSIBLE_VERSION}
+			$(docker_cmd) run --rm -e ANSIBLE_LOG_PATH=${ANSIBLE_LOG_PATH} -e ANSIBLE_FORKS=${NUM_HOSTSINPLAY} -e MYPROXY=${PROXY_ADDRESS} -e MYHOME=${HOME} -e MYHOSTNAME=$(hostname) -e MYCONTAINERNAME=${CNTNRNAME} -e MYIP=$(get_host_ip) -e MYHOSTOS=$(get_os) --user ansible -w ${CONTAINERWD} -v /data:/data:z -v /tmp:/tmp:z -v ${HOME}/.ssh:/home/ansible/.ssh:z -v ${PWD}:${CONTAINERWD}:z --name ${CNTNRNAME} -t -d --entrypoint /bin/bash ${CONTAINERREPO}:${ANSIBLE_VERSION}
 		fi
 		[[ ${debug} == 1 ]] && set -x
-		[[ $(check_container; echo "${?}") -ne 0 ]] && echo "Unable to start container ${CONTAINERNAME}" && exit 1
+		[[ $(check_container "${CNTNRNAME}"; echo "${?}") -ne 0 ]] && echo "Unable to start container ${CNTNRNAME}" && exit 1
 	fi
 }
 
-function stop_container() {
-	if [[ $(check_container; echo "${?}") -eq 0 ]]
+function kill_container() {
+	local CNTNRNAME
+	CNTNRNAME="${1}"
+	if [[ $(check_container "${CNTNRNAME}"; echo "${?}") -eq 0 ]]
 	then
-		echo "Stopping container ${CONTAINERNAME}"
-		$(docker_cmd) stop ${CONTAINERNAME} &>/dev/null
+		echo "Killing container ${CNTNRNAME}"
+		$(docker_cmd) kill ${CNTNRNAME} &>/dev/null
 	fi
 }
 
@@ -411,9 +417,11 @@ function get_creds_prefix() {
 }
 
 function get_creds() {
-	if [[ $(get_creds_prefix ${1}) ]]
+	local CNTNRNAME
+	CNTNRNAME=${1}
+	if [[ $(get_creds_prefix ${2}) ]]
 	then
-		view_vault ${PASSVAULT} Bash/get_common_vault_pass.sh | grep ^$(get_creds_prefix ${1}) | sed "s/'//g"
+		view_vault "${CNTNRNAME}" "${PASSVAULT}" Bash/get_common_vault_pass.sh | grep ^$(get_creds_prefix ${2}) | sed "s/'//g"
 		return 0
 	else
 		return 1
@@ -448,7 +456,7 @@ function remove_hosts_arg() {
 	[[ "$(echo "${@}" | grep -Ew '\-l')" != "" ]] && ARG_NAME="-l" && MYACTION="clean"
 	if [[ ${MYACTION} == "clean" ]]
 	then
-        local MYARGS
+		local MYARGS
 		MYARGS=$(echo "${@}" | awk -F "${ARG_NAME} " '{print $NF}' | awk -F ' -' '{print $1}')
 		NEWARGS=$(echo "${@}" | sed "s/${ARG_NAME} ${MYARGS}//")
 	else
@@ -480,7 +488,9 @@ function get_host_ip() {
 }
 
 function encrypt_vault() {
-	[[ -f ${1} ]] && [[ -f ${2} ]] && [[ -x ${2} ]] && $(docker_cmd) exec -it ${CONTAINERNAME} ansible-vault encrypt "${1}" --vault-password-file "${2}" &>"${ANSIBLE_LOG_LOCATION}"/encrypt_error."${PID}"
+	local CNTNRNAME
+	CNTNRNAME="${1}"
+	[[ -f ${2} ]] && [[ -f ${3} ]] && [[ -x ${3} ]] && $(docker_cmd) exec -i ${CNTNRNAME} ansible-vault encrypt "${2}" --vault-password-file "${3}" &>"${ANSIBLE_LOG_LOCATION}"/encrypt_error."${PID}"
 	if [[ -s "${ANSIBLE_LOG_LOCATION}/encrypt_error.${PID}" && "$(grep 'successful' "${ANSIBLE_LOG_LOCATION}/encrypt_error.${PID}")" == "" ]]
 	then
 		cat "${ANSIBLE_LOG_LOCATION}"/encrypt_error."${PID}"
@@ -491,8 +501,10 @@ function encrypt_vault() {
 }
 
 function view_vault() {
-	[[ -f ${1} ]] && [[ -f ${2} ]] && [[ -x ${2} ]] && $(docker_cmd) exec -i ${CONTAINERNAME} ansible-vault view "${1}" --vault-password-file "${2}" 2>"${ANSIBLE_LOG_LOCATION}"/decrypt_error."${PID}"
-	[[ $(grep "was not found" "${ANSIBLE_LOG_LOCATION}"/decrypt_error."${PID}") != "" ]] && sed -i "/^vault_password_file.*$/,+d" "${ANSIBLE_CFG}" && $(docker_cmd) exec -i ${CONTAINERNAME} ansible-vault view "${1}" --vault-password-file "${2}" &>/dev/null
+	local CNTNRNAME
+	CNTNRNAME="${1}"
+	[[ -f ${2} ]] && [[ -f ${3} ]] && [[ -x ${3} ]] && $(docker_cmd) exec -i ${CNTNRNAME} ansible-vault view "${2}" --vault-password-file "${3}" 2>"${ANSIBLE_LOG_LOCATION}"/decrypt_error."${PID}"
+	[[ $(grep "was not found" "${ANSIBLE_LOG_LOCATION}"/decrypt_error."${PID}") != "" ]] && sed -i "/^vault_password_file.*$/,+d" "${ANSIBLE_CFG}" && $(docker_cmd) exec -i ${CNTNRNAME} ansible-vault view "${2}" --vault-password-file "${3}" &>/dev/null
 	rm -f "${ANSIBLE_LOG_LOCATION}"/decrypt_error."${PID}"
 }
 
@@ -520,7 +532,7 @@ function get_repo_creds() {
 			echo
 			echo "Unable to get repo credentials"
 			echo
-			[[ -z ${MYINVOKER+x} ]] && stop_container && exit 1
+			[[ -z ${MYINVOKER+x} ]] && kill_container && exit 1
 		fi
 	fi
 }
@@ -543,6 +555,8 @@ function check_updates() {
 				local REPOPASS
 				local i
 				local retries
+				local CNTNRNAME
+				CNTNRNAME="${1}"
 				i=0
 				retries=3
 				while [[ ${i} -lt ${retries} ]]
@@ -551,8 +565,8 @@ function check_updates() {
 					if [[ ${REPOUSER} == "" || ${REPOPASS} == "" ]]
 					then
 						[[ ${debug} == 1 ]] && set -x
-						read -r REPOUSER <<< "$(view_vault "${1}" "${2}" | grep USER | cut -d "'" -f2)"
-						read -r REPOPASS <<< "$(view_vault "${1}" "${2}" | grep PASS | cut -d "'" -f2)"
+						read -r REPOUSER <<< "$(view_vault "${CNTNRNAME}" "${2}" "${3}" | grep USER | cut -d "'" -f2)"
+						read -r REPOPASS <<< "$(view_vault "${CNTNRNAME}" "${2}" "${3}" | grep PASS | cut -d "'" -f2)"
 					else
 						break
 					fi
@@ -613,8 +627,11 @@ function check_updates() {
 }
 
 function get_inventory() {
+	local CNTNRNAME
+	CNTNRNAME="${1}"
+	ANSIBLE_CMD_ARGS=$(echo "${@}" | sed "s/${CNTNRNAME} //")
 	sed -i "/^vault_password_file.*$/,+d" "${ANSIBLE_CFG}"
-	$(docker_cmd) exec -it ${CONTAINERNAME} ansible-playbook playbooks/getinventory.yml --extra-vars "{SYS_NAME: '${SYS_DEF}'}" -e @"${SVCVAULT}" --vault-password-file Bash/get_common_vault_pass.sh -e @"${ANSIBLE_VARS}" -e "{auto_dir: '${CONTAINERWD}'}" $(remove_extra_vars_arg "$(remove_hosts_arg "${@}")") -v
+	$(docker_cmd) exec -it ${CNTNRNAME} ansible-playbook playbooks/getinventory.yml --extra-vars "{SYS_NAME: '${SYS_DEF}'}" -e @"${SVCVAULT}" --vault-password-file Bash/get_common_vault_pass.sh -e @"${ANSIBLE_VARS}" -e "{auto_dir: '${CONTAINERWD}'}" $(remove_extra_vars_arg "$(remove_hosts_arg "${ANSIBLE_CMD_ARGS}")") -v
 	GET_INVENTORY_STATUS=${?}
 	[[ ${GET_INVENTORY_STATUS} != 0 ]] && exit 1
 }
@@ -623,20 +640,24 @@ function get_hosts() {
 	local ARG_NAME
 	local MYACTION
 	local HOSTS_LIST
+	local CNTNRNAME
+	CNTNRNAME="${1}"
 	[[ "$(echo "${@}" | grep -Ew '\-\-limit')" != "" ]] && ARG_NAME="--limit" && MYACTION="get"
 	[[ "$(echo "${@}" | grep -Ew '\-l')" != "" ]] && ARG_NAME="-l" && MYACTION="get"
 	if [[ ${MYACTION} == "get" ]]
 	then
 		HOSTS_LIST=$(echo "${@}" | awk -F "${ARG_NAME} " '{print $NF}' | awk -F ' -' '{print $1}' | sed -e 's/,/ /g')
 	else
-		HOSTS_LIST=$($(docker_cmd) exec -i ${CONTAINERNAME} ansible all -i "${INVENTORY_PATH}" --list-hosts | grep -v host | sed -e 's/^\s*\(\w.*\)$/\1/g' | sort)
+		HOSTS_LIST=$($(docker_cmd) exec -i ${CNTNRNAME} ansible all -i "${INVENTORY_PATH}" --list-hosts | grep -v host | sed -e 's/^\s*\(\w.*\)$/\1/g' | sort)
 	fi
 	[ "$(echo "${HOSTS_LIST}" | wc -w)" -gt 1 ] && HL="${HOSTS_LIST// /,}" || HL="${HOSTS_LIST}"
 }
 
 function get_hostsinplay() {
 	local hip
-	hip=$($(docker_cmd) exec -i ${CONTAINERNAME} ansible "${1}" -i "${INVENTORY_PATH}" -m debug -a msg="{{ ansible_play_hosts }}" | grep -Ev "\[|\]|\{|\}" | sort -u)
+	local CNTNRNAME
+	CNTNRNAME="${1}"
+	hip=$($(docker_cmd) exec -i ${CNTNRNAME} ansible "${2}" -i "${INVENTORY_PATH}" -m debug -a msg="{{ ansible_play_hosts }}" | grep -Ev "\[|\]|\{|\}" | sort -u)
 	echo ${hip}
 }
 
@@ -661,9 +682,11 @@ function create_symlink() {
 
 function enable_logging() {
 	LOG=true
+	local CNTNRNAME
+	CNTNRNAME="${1}"
 	if [[ "${LOG}" == "true" ]]
 	then
-		LOG_FILE="${ANSIBLE_LOG_LOCATION}/$(basename "${0}" | awk -F '.' '{print $1}').${ENAME}.log"
+		LOG_FILE="${ANSIBLE_LOG_LOCATION}/play_$(basename "${0}" | awk -F '.' '{print $1}').${ENAME}.log"
 		[[ "$( grep ^log_path "${ANSIBLE_CFG}" )" != "" ]] && sed -i '/^log_path = .*\$/d' "${ANSIBLE_CFG}"
 		export ANSIBLE_LOG_PATH=${LOG_FILE}
 		touch "${LOG_FILE}"
@@ -672,28 +695,30 @@ function enable_logging() {
 		chmod o+rw "${LOG_FILE}"
 		if [[ -z ${MYINVOKER+x} ]]
 		then
-			echo -e "############################################################\nAnsible Control Machine $(hostname) $(get_host_ip) ${CONTAINERNAME}\nThis script was run$(check_mode "${@}")by $(whoami) on $(date)\n############################################################\n\n" > "${LOG_FILE}"
+			echo -e "############################################################\nAnsible Control Machine $(hostname) $(get_host_ip) ${CNTNRNAME}\nThis script was run$(check_mode "${@}")by $(whoami) on $(date)\n############################################################\n\n" > "${LOG_FILE}"
 		else
-			echo -e "############################################################\nAnsible Control Machine $(hostname) $(get_host_ip) ${CONTAINERNAME}\nThis script was run$(check_mode "${@}")by ${MYINVOKER} on $(date)\n############################################################\n\n" > "${LOG_FILE}"
+			echo -e "############################################################\nAnsible Control Machine $(hostname) $(get_host_ip) ${CNTNRNAME}\nThis script was run$(check_mode "${@}")by ${MYINVOKER} on $(date)\n############################################################\n\n" > "${LOG_FILE}"
 		fi
 	fi
 }
 
 function run_playbook() {
+	local CNTNRNAME
+	CNTNRNAME="${1}"
+	ANSIBLE_CMD_ARGS=$(echo "${@}" | sed "s/${CNTNRNAME} //")
 	if [[ ${GET_INVENTORY_STATUS} == 0 || -f ${CRVAULT} ]]
 	then
 		### Begin: Determine if ASK_PASS is required
-		$(docker_cmd) exec -it ${CONTAINERNAME} ansible "${HL}" -m debug -a 'msg={{ ansible_ssh_pass }}' &>/dev/null && [[ ${?} == 0 ]] && ASK_PASS=''
+		$(docker_cmd) exec -it ${CNTNRNAME} ansible "${HL}" -m debug -a 'msg={{ ansible_ssh_pass }}' &>/dev/null && [[ ${?} == 0 ]] && ASK_PASS=''
 		### End
 		### Begin: Define the extra-vars argument list
 		local EVARGS
-		#EVARGS="{SVCFILE: '${SVCVAULT}', $(echo "${0}" | sed -e 's/.*play_\(.*\)\.sh/\1/'): true}"
 		EVARGS="{SVCFILE: '${SVCVAULT}', $(basename "${0}" | sed -e 's/\(.*\)\.sh/\1/'): true}"
 		if [[ -z ${MYINVOKER+x} ]]
 		then
-			$(docker_cmd) exec -it ${CONTAINERNAME} ansible-playbook playbooks/site.yml -i "${INVENTORY_PATH}" --extra-vars "${EVARGS}" ${ASK_PASS} -e @"${SVCVAULT}" --vault-password-file Bash/get_common_vault_pass.sh -e @"${ANSIBLE_VARS}" -e "{auto_dir: '${CONTAINERWD}'}" ${@} -v 2> "${ANSIBLE_LOG_LOCATION}"/"${PID}".stderr
+			$(docker_cmd) exec -it ${CNTNRNAME} ansible-playbook playbooks/site.yml -i "${INVENTORY_PATH}" --extra-vars "${EVARGS}" ${ASK_PASS} -e @"${SVCVAULT}" --vault-password-file Bash/get_common_vault_pass.sh -e @"${ANSIBLE_VARS}" -e "{auto_dir: '${CONTAINERWD}'}" ${ANSIBLE_CMD_ARGS} -v 2> "${ANSIBLE_LOG_LOCATION}"/"${PID}".stderr
 		else
-			$(docker_cmd) exec -it ${CONTAINERNAME} ansible-playbook playbooks/site.yml -i "${INVENTORY_PATH}" --extra-vars "${EVARGS}" ${ASK_PASS} -e @"${SVCVAULT}" --vault-password-file Bash/get_common_vault_pass.sh -e @"${ANSIBLE_VARS}" -e "{auto_dir: '${CONTAINERWD}'}" ${@} -v 2> "${ANSIBLE_LOG_LOCATION}"/"${PID}".stderr 1>/dev/null
+			$(docker_cmd) exec -it ${CNTNRNAME} ansible-playbook playbooks/site.yml -i "${INVENTORY_PATH}" --extra-vars "${EVARGS}" ${ASK_PASS} -e @"${SVCVAULT}" --vault-password-file Bash/get_common_vault_pass.sh -e @"${ANSIBLE_VARS}" -e "{auto_dir: '${CONTAINERWD}'}" ${ANSIBLE_CMD_ARGS} -v 2> "${ANSIBLE_LOG_LOCATION}"/"${PID}".stderr 1>/dev/null
 		fi
 		[[ $(grep "no vault secrets were found that could decrypt" "${ANSIBLE_LOG_LOCATION}"/"${PID}".stderr | grep  "${SVCVAULT}") != "" ]] && echo -e "\nUnable to decrypt ${BOLD}${SVCVAULT}${NORMAL}" && EC=1
 		[[ $(grep "no vault secrets were found that could decrypt" "${ANSIBLE_LOG_LOCATION}"/"${PID}".stderr | grep "${CRVAULT}") != "" ]] && echo -e "\nUnable to decrypt ${BOLD}${CRVAULT}${NORMAL}" && rm -f "${CRVAULT}" && EC=1
@@ -715,11 +740,14 @@ function disable_logging() {
 }
 
 function send_notification() {
+	local CNTNRNAME
+	CNTNRNAME="${1}"
+	ANSIBLE_CMD_ARGS=$(echo "${@}" | sed "s/${CNTNRNAME} //")
 	if [[ "$(check_mode "${@}")" == " " ]]
 	then
 		# Send playbook status notification
-		NOTIF_ARGS=$(echo "${@}" | tr ' ' '\n' | sed -e '/--tags\|-t\|--limit\|-l\|--envname/,+1d' | tr '\n' ' ')
-		$(docker_cmd) exec -it ${CONTAINERNAME} ansible-playbook playbooks/notify.yml --extra-vars "{SVCFILE: '${CONTAINERWD}/${SVCVAULT}', LFILE: '${CONTAINERWD}/${NEW_LOG_FILE}', NHOSTS: '${NUM_HOSTSINPLAY}'}" --tags notify -e @"${SVCVAULT}" --vault-password-file Bash/get_common_vault_pass.sh -e @"${ANSIBLE_VARS}" ${NOTIF_ARGS} -v &>/dev/null
+		NOTIF_ARGS=$(echo "${ANSIBLE_CMD_ARGS}" | tr ' ' '\n' | sed -e '/--tags\|-t\|--limit\|-l\|--envname/,+1d' | tr '\n' ' ')
+		$(docker_cmd) exec -it ${CNTNRNAME} ansible-playbook playbooks/notify.yml --extra-vars "{SVCFILE: '${CONTAINERWD}/${SVCVAULT}', LFILE: '${CONTAINERWD}/${NEW_LOG_FILE}', NHOSTS: '${NUM_HOSTSINPLAY}'}" --tags notify -e @"${SVCVAULT}" --vault-password-file Bash/get_common_vault_pass.sh -e @"${ANSIBLE_VARS}" ${NOTIF_ARGS} -v #&>/dev/null
 		SCRIPT_STATUS=${?}
 	fi
 }

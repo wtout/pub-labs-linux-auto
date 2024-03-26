@@ -41,13 +41,16 @@ check_deffile
 set -- && set -- "${@}" "${NEW_ARGS}"
 git_config
 SECON=$([[ "$(git config user.email|cut -d '@' -f1)" == "watout" ]] && echo "false" || echo "true")
-check_container && stop_container
-image_prune
-start_container
+for cnum in {1..3}
+do
+	check_container "${CONTAINERNAME}_${cnum}" && kill_container "${CONTAINERNAME}_${cnum}" &>/dev/null
+done
+#image_prune
+start_container "${CONTAINERNAME}_1" &>/dev/null
 [[ $- =~ x ]] && debug=1 && [[ "${SECON}" == "true" ]] && set +x
 chmod 644 "${PASSVAULT}"
-PCREDS_LIST=$(get_creds primary)
-SCREDS_LIST=$(get_creds secondary)
+PCREDS_LIST=$(get_creds "${CONTAINERNAME}_1" primary)
+SCREDS_LIST=$(get_creds "${CONTAINERNAME}_1" secondary)
 PROXY_ADDRESS=$(get_proxy) || PA=${?}
 [[ ${PA} -eq 1 ]] && echo -e "\n${PROXY_ADDRESS}\n" && exit ${PA}
 [[ ${debug} == 1 ]] && set -x
@@ -55,15 +58,15 @@ add_write_permission ${PWD}/vars
 if [[ -z ${MYINVOKER+x} ]]
 then
 	get_repo_creds "${REPOVAULT}" Bash/get_repo_vault_pass.sh
-	check_updates "${REPOVAULT}" Bash/get_repo_vault_pass.sh
+	check_updates "${CONTAINERNAME}_1" "${REPOVAULT}" Bash/get_repo_vault_pass.sh
 	CHECK_UPDATE_STATUS=${?}
 else
 	CHECK_UPDATE_STATUS=0
 fi
 if [[ ${CHECK_UPDATE_STATUS} -eq 3 ]]
 then
-    stop_container
-    exit 1
+	kill_container "${CONTAINERNAME}_1" &>/dev/null
+	exit 1
 else
 	[[ $- =~ x ]] && debug=1 && [[ "${SECON}" == "true" ]] && set +x
 	rm -f "${SVCVAULT}"; umask 0022; touch "${SVCVAULT}"
@@ -71,24 +74,24 @@ else
 	[[ "$(echo ${SCREDS_LIST})" != "" ]] && echo "${SCREDS_LIST[@]}" | sed "s/$(get_creds_prefix secondary)/S/g; s/^\(.*: \)\(.*\)$/\1'\2'/g" >> "${SVCVAULT}"
 	[[ ${debug} == 1 ]] && set -x
 	add_write_permission "${SVCVAULT}"
-	encrypt_vault "${SVCVAULT}" Bash/get_common_vault_pass.sh
+	encrypt_vault "${CONTAINERNAME}_1" "${SVCVAULT}" Bash/get_common_vault_pass.sh
 	sudo chown "$(stat -c '%U' "$(pwd)")":"$(stat -c '%G' "$(pwd)")" "${SVCVAULT}"
 	sudo chmod 644 "${SVCVAULT}"
-	get_inventory "${@}"
-	get_hosts "${@}"
-	NUM_HOSTSINPLAY=$([[ "$(get_hostsinplay "${HL}" | wc -w)" != "0" ]] && get_hostsinplay "${HL}" | wc -w || echo "1")
+	get_inventory "${CONTAINERNAME}_1" "${@}"
+	get_hosts "${CONTAINERNAME}_1" "${@}"
+	NUM_HOSTSINPLAY=$([[ "$(get_hostsinplay "${CONTAINERNAME}_1" "${HL}" | wc -w)" != "0" ]] && get_hostsinplay "${CONTAINERNAME}_1" "${HL}" | wc -w || echo "1")
 	create_symlink
-	stop_container
 	add_write_permission "${PWD}/roles"
 	add_write_permission "${PWD}/roles/*"
 	add_write_permission "${PWD}/roles/*/files"
-	enable_logging "${@}"
-	start_container
-	run_playbook "${@}"
-	stop_container
+	enable_logging "${CONTAINERNAME}_2" "${@}"
+	start_container "${CONTAINERNAME}_2" &>/dev/null
+	kill_container "${CONTAINERNAME}_1" &>/dev/null
+	run_playbook "${CONTAINERNAME}_2" "${@}"
 	disable_logging
-	start_container &>/dev/null
-	send_notification "${ORIG_ARGS}"
-	stop_container &>/dev/null
+	start_container "${CONTAINERNAME}_3" &>/dev/null
+	kill_container "${CONTAINERNAME}_2" &>/dev/null
+	send_notification "${CONTAINERNAME}_3" "${ORIG_ARGS}"
+	kill_container "${CONTAINERNAME}_3" &>/dev/null
 	exit ${SCRIPT_STATUS}
 fi
