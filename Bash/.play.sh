@@ -31,7 +31,6 @@ ORIG_ARGS="${@}"
 ENAME=$(get_envname "${ORIG_ARGS}")
 check_repeat_job && echo -e "\nRunning multiple instances of ${BOLD}$(basename "${0}")${NORMAL} is prohibited. Aborting!\n\n" && exit 1
 INVENTORY_PATH="inventories/${ENAME}"
-CRVAULT="${INVENTORY_PATH}/group_vars/vault.yml"
 SYS_DEF="Definitions/${ENAME}.yml"
 SYS_ALL="${INVENTORY_PATH}/group_vars/all.yml"
 SVCVAULT="vars/.svc_acct_creds_${ENAME}.yml"
