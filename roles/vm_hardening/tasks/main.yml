@@ -23,6 +23,8 @@
           vars:
             hardening_level: 1
             set_rsyslog_remote_host: false
+            install_updates_and_patches: false
+    - include_tasks: task_delete_hardening_auto.yml
     when:
       - hardv | default(true) | bool
   - include_tasks: task_root_never_expire.yml
