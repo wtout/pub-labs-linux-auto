@@ -30,7 +30,6 @@
     - deploy | default(false) | bool
     - "'stack' in group_names or (build.disaster_recovery and 'dr' in group_names)"
     - build.version.os_iso|lower is not search('ubuntu')
-    - build.version.os_iso|lower is not search('almalinux-9.2')
   tags: vm_hardening
 
 - name: define install_docker

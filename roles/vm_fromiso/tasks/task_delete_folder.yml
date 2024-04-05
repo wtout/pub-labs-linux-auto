@@ -38,4 +38,3 @@
     vars:
       ffn: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] + '/vm' + (('' if folder_name is regex('^/') else '/') + folder_name if folder_name != '' else '') }}"
   delegate_to: localhost
-  run_once: yes
