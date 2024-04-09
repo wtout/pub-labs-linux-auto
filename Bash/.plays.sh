@@ -19,7 +19,7 @@ create_dir "${ANSIBLE_LOG_LOCATION}"
 check_docker_login
 restart_docker
 git_config
-#image_prune
+image_prune
 start_container "${CONTAINERNAME}" &>/dev/null
 if [[ -z ${MYINVOKER+x} ]]
 then
