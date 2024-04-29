@@ -2,34 +2,34 @@
 # tasks to get the total storage space required
 - block:
   - block:
-    - name: define stack01 SSD required space
+    - name: define stack01 SSD/RAID10 required space
       ansible.builtin.set_fact:
         stack01_ssd_required_space: "{{ stack01_ssd_required_space|default(0)|int + hostvars[task_item]['vm']['disk2']|int if task_item is search('ind') else (hostvars[task_item]['vm']['disk']|int + hostvars[task_item]['vm']['memory']|int) }}"
       loop: "{{ ansible_play_hosts | select('search', 'em7db|splind') | reject('search', 'dr') | reject('match', '^.+[02468]$') | list }}"
       loop_control:
         loop_var: task_item
-    - name: define stack02 SSD required space
+    - name: define stack02 SSD/RAID10 required space
       ansible.builtin.set_fact:
         stack02_ssd_required_space: "{{ stack02_ssd_required_space|default(0)|int + hostvars[task_item]['vm']['disk2']|int if task_item is search('ind') else (hostvars[task_item]['vm']['disk']|int + hostvars[task_item]['vm']['memory']|int) }}"
       loop: "{{ ansible_play_hosts | select('search', 'em7db|splind') | reject('search', 'dr') | select('match', '^.+[02468]$') | list }}"
       loop_control:
         loop_var: task_item
-    - name: define stack SSD required space
+    - name: define stack SSD/RAID10 required space
       ansible.builtin.set_fact:
         stack_ssd_required_space: "{{ stack01_ssd_required_space|default(0)|int + stack02_ssd_required_space|default(0)|int }}"
-    - name: define stack01 SAS required space
+    - name: define stack01 SAS/RAID5 required space
       ansible.builtin.set_fact:
         stack01_sas_required_space: "{{ stack01_sas_required_space|default(0)|int + ((hostvars[task_item]['vm']['disk']|int - hostvars[task_item]['vm']['disk2']|int) if task_item is search('ind') else (hostvars[task_item]['vm']['disk']|int) + hostvars[task_item]['vm']['memory']|int) }}"
       loop: "{{ ansible_play_hosts | reject('search', 'dr|em7db|vcenter') | reject('match', '^.+[02468]$') | list }}"
       loop_control:
         loop_var: task_item
-    - name: define stack02 SAS required space
+    - name: define stack02 SAS/RAID5 required space
       ansible.builtin.set_fact:
         stack02_sas_required_space: "{{ stack02_sas_required_space|default(0)|int + ((hostvars[task_item]['vm']['disk']|int - hostvars[task_item]['vm']['disk2']|int) if task_item is search('ind') else (hostvars[task_item]['vm']['disk']|int) + hostvars[task_item]['vm']['memory']|int) }}"
       loop: "{{ ansible_play_hosts | reject('search', 'dr|em7db|vcenter') | select('match', '^.+[02468]$') | list }}"
       loop_control:
         loop_var: task_item
-    - name: define stack SAS required space
+    - name: define stack SAS/RAID5 required space
       ansible.builtin.set_fact:
         stack_sas_required_space: "{{ stack01_sas_required_space|default(0)|int + stack02_sas_required_space|default(0)|int }}"
     - name: define stack total required space
@@ -38,13 +38,13 @@
     when: "'vcenter' in group_names"
 
   - block:
-    - name: define DR SSD required space
+    - name: define DR SSD/RAID10 required space
       ansible.builtin.set_fact:
         dr_ssd_required_space: "{{ dr_ssd_required_space|default(0)|int + hostvars[task_item]['vm']['disk2']|int if task_item is search('ind') else (hostvars[task_item]['vm']['disk']|int + hostvars[task_item]['vm']['memory']|int) }}"
       loop: "{{ ansible_play_hosts | select('search', 'drem7db|drsplind') | list }}"
       loop_control:
         loop_var: task_item
-    - name: define DR SAS required space
+    - name: define DR SAS/RAID5 required space
       ansible.builtin.set_fact:
         dr_sas_required_space: "{{ dr_sas_required_space|default(0)|int + ((hostvars[task_item]['vm']['disk']|int - hostvars[task_item]['vm']['disk2']|int) if task_item is search('ind') else (hostvars[task_item]['vm']['disk']|int) + hostvars[task_item]['vm']['memory']|int) }}"
       loop: "{{ ansible_play_hosts | select('search', 'dr') | reject('search', 'em7db|puppet|vcenter') | list }}"

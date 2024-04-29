@@ -26,7 +26,7 @@
         loop_var: group_item
     - name: define list of usable datastores
       ansible.builtin.set_fact:
-        usable_ds_list: "{{ usable_ds_list|default([]) | union(vars[group_item + '_ds_names']) }}" 
+        usable_ds_list: "{{ usable_ds_list|default([]) | community.general.lists_union(vars[group_item + '_ds_names']) }}" 
       loop: "{{ play_stack_group_list|default([]) }}"
       loop_control:
         loop_var: group_item
@@ -56,7 +56,7 @@
         loop_var: group_item
     - name: define list of usable datastores
       ansible.builtin.set_fact:
-        usable_ds_list: "{{ usable_ds_list|default([]) | union(vars[group_item + '_ds_names']) }}" 
+        usable_ds_list: "{{ usable_ds_list|default([]) | community.general.lists_union(vars[group_item + '_ds_names']) }}" 
       loop: "{{ play_dr_group_list }}"
       loop_control:
         loop_var: group_item
