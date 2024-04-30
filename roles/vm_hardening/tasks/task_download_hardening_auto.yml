@@ -9,8 +9,6 @@
         version: 'HEAD'
         force: yes
       register: reg_clone_repo1
-      async: 200
-      poll: 10
     rescue:
     - name: re-clone the repo
       git:
@@ -19,8 +17,6 @@
         version: 'HEAD'
         force: yes
       register: reg_clone_repo2
-      async: 200
-      poll: 10
   - name: define clone_repo
     ansible.builtin.set_fact:
       clone_repo: "{{ reg_clone_repo1 if reg_clone_repo1 is succeeded else reg_clone_repo2 }}"
@@ -49,6 +45,3 @@
     become: yes
   delegate_to: localhost
   run_once: true
-  environment:
-    http_proxy: "{{ proxy_address|default('') }}"
-    https_proxy: "{{ proxy_address|default('') }}"
