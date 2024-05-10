@@ -4,19 +4,19 @@
   - name: create Hosted VMs
     block:
     - include_tasks:
-        file: task_create_folder.yml
+        file: task_create_folder_path.yml
         apply:
           vars:
-            folder_name: "{{ fldr_name }}"
+            curr_folder: "{{ myfolder }}"
       when:
         - crecon | default(true) | bool
         - "'stack' in group_names"
         - inventory_hostname == ansible_play_hosts | intersect(groups['stack']) | first
     - include_tasks:
-        file: task_create_folder.yml
+        file: task_create_folder_path.yml
         apply:
           vars:
-            folder_name: "{{ fldr_name }}"
+            curr_folder: "{{ myfolder }}"
       when:
         - crecon | default(true) | bool
         - build.disaster_recovery
@@ -54,19 +54,19 @@
     block:
     - block:
       - include_tasks:
-          file: task_create_folder.yml
+          file: task_create_folder_path.yml
           apply:
             vars:
-              folder_name: "{{ fldr_name }}"
+              curr_folder: "{{ myfolder }}"
         when:
           - crecon | default(true) | bool
           - "'stack' in group_names"
           - inventory_hostname == ansible_play_hosts | intersect(groups['stack']) | first
       - include_tasks:
-          file: task_create_folder.yml
+          file: task_create_folder_path.yml
           apply:
             vars:
-              folder_name: "{{ fldr_name }}"
+              curr_folder: "{{ myfolder }}"
         when:
           - crecon | default(true) | bool
           - build.disaster_recovery
@@ -76,3 +76,6 @@
     - include_tasks: task_create_configure_vms.yml
     when:
       - hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['deptype'] == 'a'
+  vars:
+    firsthost: "{{ ansible_play_hosts | intersect(groups['dr'] if 'dr' in group_names else groups['stack']) | first }}"
+    myfolder: "{{ ('/' if hostvars[inventory_hostname]['datacenter']['secondary' if 'dr' in group_names else 'primary']['folder'] is not regex('^/') else '') + hostvars[inventory_hostname]['datacenter']['secondary' if 'dr' in group_names else 'primary']['folder'] }}"

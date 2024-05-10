@@ -3,21 +3,26 @@
 - block:
   - include_tasks: task_delete_vm.yml
   - include_tasks:
-      file: task_delete_folder.yml
+      file: task_delete_folder_path.yml
       apply:
         vars:
-          folder_name: "{{ fldr_name }}"
+          curr_folder: "{{ myfolder }}"
     when:
+      - inventory_hostname == firsthost
       - "'stack' in group_names"
       - inventory_hostname == ansible_play_hosts | intersect(groups['stack']) | first
       - hostvars[groups['vcenter'][0]]['information']['deptype'] == 'h'
   - include_tasks:
-      file: task_delete_folder.yml
+      file: task_delete_folder_path.yml
       apply:
         vars:
-          folder_name: "{{ fldr_name }}"
+          curr_folder: "{{ myfolder }}"
     when:
       - build.disaster_recovery
+      - inventory_hostname == firsthost
       - "'dr' in group_names"
       - inventory_hostname == ansible_play_hosts | intersect(groups['dr']) | first
       - hostvars[groups['drvcenter'][0]]['information']['deptype'] == 'h'
+  vars:
+    firsthost: "{{ ansible_play_hosts | intersect(groups['dr'] if 'dr' in group_names else groups['stack']) | first }}"
+    myfolder: "{{ ('/' if hostvars[inventory_hostname]['datacenter']['secondary' if 'dr' in group_names else 'primary']['folder'] is not regex('^/') else '') + hostvars[inventory_hostname]['datacenter']['secondary' if 'dr' in group_names else 'primary']['folder'] }}"
