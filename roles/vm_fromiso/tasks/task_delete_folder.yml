@@ -16,8 +16,12 @@
       apply:
         vars:
           foldername: "{{ folder_name }}"
-  - ansible.builtin.debug:
-      msg: "The folder '{{ folder_name }}' cannot be deleted because it is not empty"
+  - block:
+    - ansible.builtin.debug:
+        msg: "The folder '{{ folder_name }}' cannot be deleted because it is not empty"
+    - name: define exit_delete_loop
+      ansible.builtin.set_fact:
+        exit_delete_loop: true
     when: not folder_empty
   - block:
     - name: Delete the {{ folder_name }} folder
@@ -39,4 +43,6 @@
       when:
         - reg_delete_folder is failed
     when: folder_empty
-  when: folder_info.flat_folder_info|select('search', folder_name)
+  when:
+    - not exit_delete_loop
+    - folder_info.flat_folder_info|select('search', folder_name)
