@@ -1,13 +1,17 @@
 ---
 # Tasks to leave the AD domain
 - block:
-  - name: leave the {{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }} domain
-    ansible.builtin.shell: echo '{{ infra_admin_pass }}' | realm leave -v -U {{ infra_admin_user }} {{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }}
-    register: reg_leave_domain
-    failed_when:
-      - reg_leave_domain.rc == 1
-      - reg_leave_domain.stderr is not search('Couldn\'t find a matching realm')
-#    no_log: yes
+  - block:
+    - name: leave the {{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }} domain
+      ansible.builtin.shell: echo '{{ infra_admin_pass }}' | realm leave -v -U {{ infra_admin_user }} {{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }}
+      register: reg_leave_domain
+      failed_when:
+        - reg_leave_domain.rc == 1
+        - reg_leave_domain.stderr is not search('Couldn\'t find a matching realm')
+      no_log: yes
+    rescue:
+    - ansible.builtin.debug:
+        msg: "{{ reg_leave_domain|replace(infra_admin_pass,'obfuscated') }}"
   - name: get the Linux distribution
     ansible.builtin.setup:
       filter:
