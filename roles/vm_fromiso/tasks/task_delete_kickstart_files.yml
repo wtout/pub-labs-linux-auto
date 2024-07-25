@@ -43,7 +43,7 @@
           - build.version.os_iso|lower is search('ubuntu')
       when: "vcr_vm_reachable|default({'failed': true}) is skipped or vcr_vm_reachable|default({'failed': true}) is failed"
     when: not ansible_check_mode
-    become: "{{ 'yes' if host_os|lower is search('almalinux') else 'no' }}"
+    become: "{{ 'yes' if host_os|lower is search('almalinux|ubuntu') else 'no' }}"
 
   - name: delete {{ 'autoinstall' if build.version.os_iso|lower is search('ubuntu') else 'kickstart' }} ISO file from vsphere
     community.vmware.vsphere_file:
