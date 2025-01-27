@@ -19,19 +19,20 @@ create_dir "${ANSIBLE_LOG_LOCATION}"
 check_docker_login
 restart_docker
 git_config
-[[ "$(git config --file .git/config user.email|cut -d '@' -f1)" != "watout" ]] && image_prune
-pull_image &>/dev/null
-start_container "${CONTAINERNAME}" &>/dev/null
+[[ "$(git config --file .git/config user.name|cut -d ' ' -f2 | tr '[:upper:]' '[:lower:]')" == "tout" ]] && image_prune
+pull_image
+start_container "${CONTAINERNAME}"
 add_write_permission "${PWD}/vars"
+get_repo_creds "${CONTAINERNAME}" "${REPOVAULT}" Bash/get_repo_vault_pass.sh
+get_secrets_vault "${CONTAINERNAME}" "${REPOVAULT}" Bash/get_repo_vault_pass.sh
 if [[ -z ${MYINVOKER+x} ]]
 then
-	get_repo_creds "${CONTAINERNAME}" "${REPOVAULT}" Bash/get_repo_vault_pass.sh
 	check_updates "${CONTAINERNAME}" "${REPOVAULT}" Bash/get_repo_vault_pass.sh
 	CHECK_UPDATE_STATUS=${?}
 else
 	CHECK_UPDATE_STATUS=0
 fi
-kill_container "${CONTAINERNAME}" &>/dev/null
+kill_container "${CONTAINERNAME}"
 if [[ ${CHECK_UPDATE_STATUS} -eq 3 ]]
 then
 	exit 1
@@ -69,5 +70,6 @@ else
 			EC=1
 		fi
 	done
+	remove_secrets_vault
 	exit "${EC}"
 fi

@@ -24,7 +24,7 @@ for cnum in {1..3}
 do
 	check_container "${CONTAINERNAME}_${cnum}" && kill_container "${CONTAINERNAME}_${cnum}" &>/dev/null
 done
-start_container "${CONTAINERNAME}_1" &>/dev/null
+start_container "${CONTAINERNAME}_1"
 [[ $- =~ x ]] && debug=1 && [[ "${SECON}" == "true" ]] && set +x
 chmod 644 "${PASSVAULT}"
 PCREDS_LIST=$(get_creds "${CONTAINERNAME}_1" primary)
@@ -50,12 +50,12 @@ add_write_permission "${PWD}/roles"
 add_write_permission "${PWD}/roles/*"
 add_write_permission "${PWD}/roles/*/files"
 enable_logging "${CONTAINERNAME}_2" "${@}"
-start_container "${CONTAINERNAME}_2" &>/dev/null
-kill_container "${CONTAINERNAME}_1" &>/dev/null
+start_container "${CONTAINERNAME}_2"
+kill_container "${CONTAINERNAME}_1"
 run_playbook "${CONTAINERNAME}_2" "${@}"
 disable_logging
-start_container "${CONTAINERNAME}_3" &>/dev/null
-kill_container "${CONTAINERNAME}_2" &>/dev/null
+start_container "${CONTAINERNAME}_3"
+kill_container "${CONTAINERNAME}_2"
 send_notification "${CONTAINERNAME}_3" "${ORIG_ARGS}"
-kill_container "${CONTAINERNAME}_3" &>/dev/null
+kill_container "${CONTAINERNAME}_3"
 exit ${SCRIPT_STATUS}
