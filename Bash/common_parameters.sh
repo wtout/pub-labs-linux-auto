@@ -11,4 +11,4 @@ PASSVAULT="vars/passwords.yml"
 REPOVAULT="vars/.repovault.yml"
 CONTAINERWD="/home/ansible/$(basename ${PWD})"
 CONTAINERREPO="registry-1.docker.io/wtout/ansible"
-SECON=$([[ "$(git config --file .git/config user.name|cut -d ' ' -f2 | tr '[:upper:]' '[:lower:]')" == "wtout" ]] && echo "false" || echo "true")
+SECON=$([[ "$(git config --file .git/config user.name|cut -d ' ' -f2 | tr '[:upper:]' '[:lower:]')" == "tout" ]] && echo "false" || echo "true")
