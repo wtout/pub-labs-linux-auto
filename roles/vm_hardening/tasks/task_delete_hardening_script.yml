@@ -1,0 +1,8 @@
+---
+# Tasks to delete the hardening script
+- block:
+  - name: delete hardening script locally
+    ansible.builtin.file:
+      path: "{{ role_path }}/files/{{ vm.name }}-hardening.sh"
+      state: absent
+  delegate_to: localhost

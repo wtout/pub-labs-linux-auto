@@ -1,0 +1,118 @@
+---
+# Variables for all hosts
+
+##################################################################################
+# build specific information
+##################################################################################
+build:
+
+  # Official build name
+  name: '{{ environment_definition.build.name }}'
+
+  # team_contact1 (string)
+  team_contact1: '{{ environment_definition.build.team_contact1|default('') }}'
+
+  # team_contact2 (string)
+  team_contact2: '{{ environment_definition.build.team_contact2|default('') }}'
+
+  # team_mailer (string)
+  team_mailer: '{{ environment_definition.build.team_mailer|default('') }}'
+
+  # Disaster recovery (boolean yes/no)
+  disaster_recovery: {{ environment_definition.build.disaster_recovery }}
+
+  version:
+
+    # OS ISO (string)
+    os_iso: '{{ environment_definition.build.version.os_iso if environment_definition.build.version.os_iso != none else 'CentOS-7-x86_64-Everything-2009.iso' }}'
+
+  primary:
+
+    # Primary name prefix
+    name_prefix: '{{ environment_definition.build.primary.name_prefix }}'
+
+    # Primary first 3 octets
+    octets: '{{ environment_definition.build.primary.octets }}'
+
+  secondary:
+
+    # Secondary name prefix
+    name_prefix: '{{ environment_definition.build.secondary.name_prefix if environment_definition.build.disaster_recovery else "" }}'
+
+    # Secondary first 3 octets
+    octets: '{{ environment_definition.build.secondary.octets if environment_definition.build.disaster_recovery else "" }}'
+
+
+##################################################################################
+# Datacenter where the stack is to be built
+##################################################################################
+datacenter:
+
+  primary:
+
+    # Available datacenters: STG-HX-DC, RTP-Staging, PAE-HX-DC-1, PAE-HX-DC-2, PAE-HX-DC-3, PAE-HX-DC-4, Plat-Ops, Dev Engineering, cdra-Build-Development, PAE-Customer-Build, RTP5, Alln1 (string)
+    name: '{{ environment_definition.datacenter.primary.name }}'
+
+    # Required if a custom cluster name is to be used
+    # The primary cluster to host the build's primary stack
+    cluster: '{{ environment_definition.datacenter.primary.cluster if environment_definition.datacenter.primary.cluster != none else "" }}'
+
+    # Required if a custom folder name is to be used
+    # The primary folder to host the build's primary stack
+    folder: '{{ environment_definition.datacenter.primary.folder if environment_definition.datacenter.primary.folder != none else "" }}'
+
+    # ONLY for on-premise deployments, define the list of esxi hosts (resources) to use (string)
+    # For hosted deployments DO NOT TOUCH
+    # Use ',', ';' or space as separator when you have more than one host
+    resources: [ '{{ primary_resources|join(',')|replace(",", "', '") if (environment_definition.build.deployment_model is search('a') and environment_definition.build.deployment_model is not search('h')) else "" }}' ]
+
+  secondary:
+
+    # Available datacenters: STG-HX-DC, RTP-Staging, PAE-HX-DC-1, PAE-HX-DC-2, PAE-HX-DC-3, PAE-HX-DC-4, Plat-Ops, Dev Engineering, cdra-Build-Development, PAE-Customer-Build, RTP5, Alln1 (string)
+    name: '{{ environment_definition.datacenter.secondary.name }}'
+
+    # Required if a custom cluster name is to be used
+    # The secondary cluster to host the build's secondary stack
+    cluster: '{{ environment_definition.datacenter.secondary.cluster if environment_definition.datacenter.secondary.cluster != none else "" }}'
+
+    # Required if a custom folder name is to be used
+    # The secondary folder to host the build's secondary stack
+    folder: '{{ environment_definition.datacenter.secondary.folder if environment_definition.datacenter.secondary.folder != none else "" }}'
+
+    # ONLY for on-premise deployments, define the list of esxi hosts (resources) to use (string)
+    # For hosted deployments DO NOT TOUCH
+    resources: [ '{{ secondary_resources|join(',')|replace(",", "', '") if (environment_definition.build.disaster_recovery and environment_definition.build.deployment_model is search('a') and environment_definition.build.deployment_model is not search('h')) else "" }}' ]
+
+
+##################################################################################
+# System configuration variables
+##################################################################################
+sysconfig:
+
+  primary:
+
+    # DNS servers list
+    dns_servers: {{ [ '172.23.251.21', '172.23.251.22' ] if environment_definition.datacenter.primary.name is regex('RTP-Staging|STG') else ['172.30.251.21', '172.30.251.22'] if environment_definition.datacenter.primary.name is regex('PAE-HX-DC|Dev Engineering') else ['172.19.251.21', '172.19.251.22'] }}
+
+    # Domain name to use
+    domain_name: "{{ ('staging.' if environment_definition.datacenter.primary.name is regex('RTP-Staging|STG') else '') + 'cisco-' + ('pae' if environment_definition.datacenter.primary.name is regex('PAE-HX-DC|Dev Engineering') else 'cms') + '.com' }}"
+
+    # NTP server
+    ntp_server: {{ ([environment_definition.vm_setting.sysconfig.ntp_server|unique|join(', ')] if environment_definition.vm_setting.sysconfig.ntp_server|type_debug == 'list' else ("'" + environment_definition.vm_setting.sysconfig.ntp_server|string + "'")) if environment_definition.vm_setting.sysconfig.ntp_server is defined else "'{{ build.primary.octets }}.254'" }}
+
+    # User quota
+    user_quota: {{ environment_definition.vm_setting.sysconfig.user_quota if environment_definition.vm_setting.sysconfig.user_quota is defined and environment_definition.vm_setting.sysconfig.user_quota != none else 1 }}
+
+  secondary:
+  
+    # DNS servers list
+    dns_servers: {{ ([ '172.23.251.21', '172.23.251.22' ] if environment_definition.datacenter.secondary.name is regex('RTP-Staging|STG') else ['172.30.251.21', '172.30.251.22'] if environment_definition.datacenter.secondary.name is regex('PAE-HX-DC|Dev Engineering') else ['172.19.251.21', '172.19.251.22']) if environment_definition.build.disaster_recovery else ''  }}
+
+    # Domain name to use
+    domain_name: "{{ (('staging.' if environment_definition.datacenter.secondary.name is regex('RTP-Staging|STG') else '') + 'cisco-' + ('pae' if environment_definition.datacenter.secondary.name is regex('PAE-HX-DC|Dev Engineering') else 'cms') + '.com') if environment_definition.build.disaster_recovery else '' }}"
+
+    # NTP server
+    ntp_server: {{ (([environment_definition.drvm_setting.sysconfig.ntp_server|unique|join(', ')] if environment_definition.drvm_setting.sysconfig.ntp_server|type_debug == 'list' else ("'" + environment_definition.drvm_setting.sysconfig.ntp_server|string + "'")) if environment_definition.drvm_setting.sysconfig.ntp_server is defined else "'{{ build.secondary.octets }}.254'") if environment_definition.build.disaster_recovery else '' }}
+
+    # User quota
+    user_quota: {{ environment_definition.drvm_setting.sysconfig.user_quota if environment_definition.drvm_setting.sysconfig.user_quota is defined and environment_definition.drvm_setting.sysconfig.user_quota != none else 1 }}
