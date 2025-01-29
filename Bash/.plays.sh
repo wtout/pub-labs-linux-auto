@@ -25,7 +25,6 @@ start_container "${CONTAINERNAME}"
 add_write_permission "${PWD}/vars"
 get_repo_creds "${CONTAINERNAME}" "${REPOVAULT}" Bash/get_repo_vault_pass.sh
 get_secrets_vault "${CONTAINERNAME}" "${REPOVAULT}" Bash/get_repo_vault_pass.sh
-read -r
 if [[ -z ${MYINVOKER+x} ]]
 then
 	check_updates "${CONTAINERNAME}" "${REPOVAULT}" Bash/get_repo_vault_pass.sh

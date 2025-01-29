@@ -584,7 +584,9 @@ function get_secrets_vault() {
 	if [[ ! -f ${PASSVAULT} ]]
 	then
 		local CNTNRNAME
+		local REPOUSER
 		local REPOPASS
+		local REMOTEURL
 		local localbranch
 		local remotebranchlist
 		CNTNRNAME="${1}"
@@ -593,8 +595,15 @@ function get_secrets_vault() {
 		if [[ $(echo ${remotebranchlist}|grep '/'${localbranch}) ]]
 		then
 			[[ $- =~ x ]] && debug=1 && [[ "${SECON}" == "true" ]] && set +x
+			REPOUSER=$(read_repo_cred "${CNTNRNAME}" "${2}" "${3}" "REPOUSER")
 			REPOPASS=$(read_repo_cred "${CNTNRNAME}" "${2}" "${3}" "REPOPASS")
-			git clone --branch ${localbranch} --single-branch "$(git config --file .git/config --get remote.origin.url | sed -e "s|^pub-||" -e "s|auto|auto-secrets|" -e "s|\(//.*\)@|\1:${REPOPASS}@|")" .tmp
+			REPOPWD="${REPOPASS//@/%40}"
+			[[ "$(git config --file .git/config --get remote.origin.url | grep '\/\/.*@')" == "" ]] && REMOTEURL=$(git config --file .git/config --get remote.origin.url | sed -e "s|//\(\w\)|//${REPOUSER}:${REPOPWD}@\1|") || REMOTEURL=$(git config --file .git/config --get remote.origin.url | sed -e "s|//.*@|//${REPOUSER}:${REPOPWD}@|")
+			for i in {1..3}
+			do
+				git clone --branch ${localbranch} --single-branch "$(echo "${REMOTEURL}" | sed -e "s|pub-||" -e "s|auto|auto-secrets|")" .tmp
+				[[ ${?} -eq 0 ]] && break
+			done
 			[[ ${debug} == 1 ]] && set -x
 			mv .tmp/$(echo "${PASSVAULT##*/}") vars/
 			rm -rf .tmp
