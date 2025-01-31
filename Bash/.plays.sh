@@ -14,7 +14,7 @@ SCRIPT_NAME=$(echo "${0}" | sed 's|play_||')
 CONTAINERNAME="$(whoami | cut -d '@' -f1)_$(basename ${PWD})"
 add_user_uid_gid
 add_user_docker_group
-[[ "$(get_os)" == "AlmaLinux"* || "$(get_os)" == "Ubuntu"* ]] && [[ "$($(docker_cmd) images|grep -vi tag)" == "" ]] && podman system migrate
+[[ "$(get_os)" == "AlmaLinux"* || "$(get_os)" == "Ubuntu"* ]] && [[ "$($(docker_cmd) images|grep -vi tag)" == "" ]] && $(docker_cmd) system migrate
 create_dir "${ANSIBLE_LOG_LOCATION}"
 check_docker_login
 restart_docker
@@ -23,6 +23,9 @@ git_config
 pull_image
 start_container "${CONTAINERNAME}"
 add_write_permission "${PWD}/vars"
+add_write_permission "${PWD}/roles"
+find "${PWD}/roles" -type d -name files -exec dirname {} \; | sort -u | xargs -I {} add_write_permission "{}"
+find "${PWD}/roles" -type d -name files -exec chmod 757 {} \;
 get_repo_creds "${CONTAINERNAME}" "${REPOVAULT}" Bash/get_repo_vault_pass.sh
 get_secrets_vault "${CONTAINERNAME}" "${REPOVAULT}" Bash/get_repo_vault_pass.sh
 if [[ -z ${MYINVOKER+x} ]]
@@ -70,6 +73,10 @@ else
 			EC=1
 		fi
 	done
+	# Clean up
 	remove_secrets_vault
+	remove_write_permission "${PWD}/vars"
+	remove_write_permission "${PWD}/roles"
+	find "${PWD}/roles" -type d -exec chmod 755 {} \;
 	exit "${EC}"
 fi

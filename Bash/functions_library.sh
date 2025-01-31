@@ -421,6 +421,13 @@ function add_write_permission() {
 	done
 }
 
+function remove_write_permission() {
+	for i in ${*}
+	do
+		sudo chmod o-w ${i}
+	done
+}
+
 function get_creds_prefix() {
     local FILETOCHECK
     local DATACENTER
@@ -591,6 +598,7 @@ function get_secrets_vault() {
 		local remotebranchlist
 		CNTNRNAME="${1}"
 		localbranch=$(git branch|grep '^*'|awk '{print $NF}')
+		[[ -z ${localbranch} ]] && echo "Unable to determine the current branch. Exiting!" && exit 1
 		remotebranchlist=$(git branch -r)
 		if [[ $(echo ${remotebranchlist}|grep '/'${localbranch}) ]]
 		then
@@ -607,6 +615,9 @@ function get_secrets_vault() {
 			[[ ${debug} == 1 ]] && set -x
 			mv .tmp/$(echo "${PASSVAULT##*/}") vars/
 			rm -rf .tmp
+		else
+			echo "Unable to clone branch "${localbranch}" of the secrets vault. Exiting!"
+			exit 1
 		fi
 	fi
 }
