@@ -32,7 +32,6 @@ SCREDS_LIST=$(get_creds "${CONTAINERNAME}_1" secondary)
 PROXY_ADDRESS=$(get_proxy) || PA=${?}
 [[ ${PA} -eq 1 ]] && echo -e "\n${PROXY_ADDRESS}\n" && exit ${PA}
 [[ ${debug} == 1 ]] && set -x
-add_write_permission ${PWD}/vars
 [[ $- =~ x ]] && debug=1 && [[ "${SECON}" == "true" ]] && set +x
 rm -f "${SVCVAULT}"; umask 0022; touch "${SVCVAULT}"
 [[ "$(echo ${PCREDS_LIST})" != "" ]] && echo "${PCREDS_LIST[@]}" | sed "s/$(get_creds_prefix primary)/P/g; s/^\(.*: \)\(.*\)$/\1'\2'/g" >> "${SVCVAULT}"
@@ -46,9 +45,6 @@ get_inventory "${CONTAINERNAME}_1" "${@}"
 get_hosts "${CONTAINERNAME}_1" "${@}"
 NUM_HOSTSINPLAY=$([[ "$(get_hostsinplay "${CONTAINERNAME}_1" "${HL}" | wc -w)" != "0" ]] && get_hostsinplay "${CONTAINERNAME}_1" "${HL}" | wc -w || echo "1")
 create_symlink
-add_write_permission "${PWD}/roles"
-add_write_permission "${PWD}/roles/*"
-add_write_permission "${PWD}/roles/*/files"
 enable_logging "${CONTAINERNAME}_2" "${@}"
 start_container "${CONTAINERNAME}_2"
 kill_container "${CONTAINERNAME}_1"
