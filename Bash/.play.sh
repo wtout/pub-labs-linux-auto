@@ -22,7 +22,7 @@ check_deffile
 set -- && set -- "${@}" "${NEW_ARGS}"
 for cnum in {1..3}
 do
-	check_container "${CONTAINERNAME}_${cnum}" && kill_container "${CONTAINERNAME}_${cnum}" &>/dev/null
+	check_container "${CONTAINERNAME}_${cnum}" && kill_container "${CONTAINERNAME}_${cnum}"
 done
 start_container "${CONTAINERNAME}_1"
 [[ $- =~ x ]] && debug=1 && [[ "${SECON}" == "true" ]] && set +x

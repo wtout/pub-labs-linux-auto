@@ -190,24 +190,24 @@ function pull_image() {
 		MYRELEASE=$(get_os)
 		case ${MYRELEASE} in
 			CentOS*)
-				$(docker_cmd) pull "${CONTAINERREPO}:${ANSIBLE_VERSION}" &>"${ANSIBLE_LOG_LOCATION}"/pull_error."${PID}"
+				$(docker_cmd) pull "${CONTAINERREPO}:${ANSIBLE_VERSION}" &>"${ANSIBLE_LOG_LOCATION}"/"${PID}"-pull_error.stderr
 				;;
 			AlmaLinux*)
 				if [[ -f ${HOME}/.podman/auth.json ]]
 				then
-					$(docker_cmd) pull "${CONTAINERREPO}:${ANSIBLE_VERSION}" --authfile ${HOME}/.podman/auth.json &>"${ANSIBLE_LOG_LOCATION}"/pull_error."${PID}"
+					$(docker_cmd) pull "${CONTAINERREPO}:${ANSIBLE_VERSION}" --authfile ${HOME}/.podman/auth.json &>"${ANSIBLE_LOG_LOCATION}"/"${PID}"-pull_error.stderr
 				else
-					$(docker_cmd) pull "${CONTAINERREPO}:${ANSIBLE_VERSION}" --authfile ${XDG_RUNTIME_DIR}/containers/auth.json &>"${ANSIBLE_LOG_LOCATION}"/pull_error."${PID}"
+					$(docker_cmd) pull "${CONTAINERREPO}:${ANSIBLE_VERSION}" --authfile ${XDG_RUNTIME_DIR}/containers/auth.json &>"${ANSIBLE_LOG_LOCATION}"/"${PID}"-pull_error.stderr
 				fi
 				;;
 			Ubuntu*)
-				$(docker_cmd) pull "${CONTAINERREPO}:${ANSIBLE_VERSION}" --authfile ${HOME}/.podman/auth.json &>"${ANSIBLE_LOG_LOCATION}"/pull_error."${PID}"
+				$(docker_cmd) pull "${CONTAINERREPO}:${ANSIBLE_VERSION}" --authfile ${HOME}/.podman/auth.json &>"${ANSIBLE_LOG_LOCATION}"/"${PID}"-pull_error.stderr
 				;;
 			*)
 				;;
 		esac
-		[[ $(grep -i "error" "${ANSIBLE_LOG_LOCATION}"/pull_error."${PID}") != "" ]] &>/dev/null && cat "${ANSIBLE_LOG_LOCATION}"/pull_error."${PID}" && echo -e "\nCheck if the container image ${BOLD}${CONTAINERREPO}:${ANSIBLE_VERSION}${NORMAL} exists\n" && exit 1
-		rm -f "${ANSIBLE_LOG_LOCATION}"/pull_error."${PID}"
+		[[ $(grep -i "error" "${ANSIBLE_LOG_LOCATION}"/"${PID}"-pull_error.stderr) != "" ]] &>/dev/null && cat "${ANSIBLE_LOG_LOCATION}"/"${PID}"-pull_error.stderr && echo -e "\nCheck if the container image ${BOLD}${CONTAINERREPO}:${ANSIBLE_VERSION}${NORMAL} exists\n" && exit 1
+		rm -f "${ANSIBLE_LOG_LOCATION}"/"${PID}"-pull_error.stderr
 	fi
 }
 
@@ -531,22 +531,22 @@ function get_host_ip() {
 function encrypt_vault() {
 	local CNTNRNAME
 	CNTNRNAME="${1}"
-	[[ -f ${2} ]] && [[ -f ${3} ]] && [[ -x ${3} ]] && $(docker_cmd) exec -i ${CNTNRNAME} ansible-vault encrypt "${2}" --vault-password-file "${3}" &>"${ANSIBLE_LOG_LOCATION}"/encrypt_error."${PID}"
-	if [[ -s "${ANSIBLE_LOG_LOCATION}/encrypt_error.${PID}" && "$(grep 'ERROR' "${ANSIBLE_LOG_LOCATION}/encrypt_error.${PID}")" != "" ]]
+	[[ -f ${2} ]] && [[ -f ${3} ]] && [[ -x ${3} ]] && $(docker_cmd) exec -i ${CNTNRNAME} ansible-vault encrypt "${2}" --vault-password-file "${3}" &>"${ANSIBLE_LOG_LOCATION}"/"${PID}"-encrypt_error.stderr
+	if [[ -s "${ANSIBLE_LOG_LOCATION}"/"${PID}"-encrypt_error.stderr && "$(grep 'ERROR' "${ANSIBLE_LOG_LOCATION}"/"${PID}"-encrypt_error.stderr)" != "" ]]
 	then
-		cat "${ANSIBLE_LOG_LOCATION}"/encrypt_error."${PID}"
+		cat "${ANSIBLE_LOG_LOCATION}"/"${PID}"-encrypt_error.stderr
 		exit 1
 	else
-		rm "${ANSIBLE_LOG_LOCATION}"/encrypt_error."${PID}"
+		rm "${ANSIBLE_LOG_LOCATION}"/"${PID}"-encrypt_error.stderr
 	fi
 }
 
 function view_vault() {
 	local CNTNRNAME
 	CNTNRNAME="${1}"
-	[[ -f ${2} ]] && [[ -f ${3} ]] && [[ -x ${3} ]] && $(docker_cmd) exec -i ${CNTNRNAME} ansible-vault view "${2}" --vault-password-file "${3}" 2>"${ANSIBLE_LOG_LOCATION}"/decrypt_error."${PID}"
-	[[ $(grep "was not found" "${ANSIBLE_LOG_LOCATION}"/decrypt_error."${PID}") != "" ]] && sed -i "/^vault_password_file.*$/,+d" "${ANSIBLE_CFG}" && $(docker_cmd) exec -i ${CNTNRNAME} ansible-vault view "${2}" --vault-password-file "${3}" &>/dev/null
-	rm -f "${ANSIBLE_LOG_LOCATION}"/decrypt_error."${PID}"
+	[[ -f ${2} ]] && [[ -f ${3} ]] && [[ -x ${3} ]] && $(docker_cmd) exec -i ${CNTNRNAME} ansible-vault view "${2}" --vault-password-file "${3}" 2>"${ANSIBLE_LOG_LOCATION}"/"${PID}"-decrypt_error.stderr
+	[[ $(grep "was not found" "${ANSIBLE_LOG_LOCATION}"/"${PID}"-decrypt_error.stderr) != "" ]] && sed -i "/^vault_password_file.*$/,+d" "${ANSIBLE_CFG}" && $(docker_cmd) exec -i ${CNTNRNAME} ansible-vault view "${2}" --vault-password-file "${3}" &>/dev/null
+	rm -f "${ANSIBLE_LOG_LOCATION}"/"${PID}"-decrypt_error.stderr
 }
 
 function get_repo_creds() {
@@ -574,7 +574,7 @@ function get_repo_creds() {
 			echo
 			echo "Unable to get repo credentials"
 			echo
-			[[ -z ${MYINVOKER+x} ]] && kill_container && exit 1
+			[[ -z ${MYINVOKER+x} ]] && kill_container "${CNTNRNAME}" && exit 1
 		fi
 	fi
 }
@@ -609,9 +609,12 @@ function get_secrets_vault() {
 			[[ "$(git config --file .git/config --get remote.origin.url | grep '\/\/.*@')" == "" ]] && REMOTEURL=$(git config --file .git/config --get remote.origin.url | sed -e "s|//\(\w\)|//${REPOUSER}:${REPOPWD}@\1|") || REMOTEURL=$(git config --file .git/config --get remote.origin.url | sed -e "s|//.*@|//${REPOUSER}:${REPOPWD}@|")
 			for i in {1..3}
 			do
-				git clone --branch ${localbranch} --single-branch "$(echo "${REMOTEURL}" | sed -e "s|pub-||" -e "s|auto|auto-secrets|")" .tmp
-				[[ ${?} -eq 0 ]] && break
+				git clone --branch ${localbranch} --single-branch "$(echo "${REMOTEURL}" | sed -e "s|pub-||" -e "s|auto|auto-secrets|")" .tmp &>"${ANSIBLE_LOG_LOCATION}"/"${PID}"-get-secrets-vault.stderr
+				[[ ${?} -eq 0 ]] && break || CLONE_FAILED="true"
 			done
+			[[ "${CLONE_FAILED}" ]] && echo -e "${BOLD}Unable to download the secrets vault${NORMAL}" && cat "${ANSIBLE_LOG_LOCATION}"/"${PID}"-get-secrets-vault.stderr && EC=1
+			rm -f "${ANSIBLE_LOG_LOCATION}"/"${PID}"-get-secrets-vault.stderr
+			[[ ${EC} == 1 ]] && exit ${EC}
 			[[ ${debug} == 1 ]] && set -x
 			mv .tmp/$(echo "${PASSVAULT##*/}") vars/
 			rm -rf .tmp
@@ -802,21 +805,22 @@ function run_playbook() {
 	ANSIBLE_CMD_ARGS=$(echo "${@}" | sed "s/${CNTNRNAME} //")
 	if [[ ${GET_INVENTORY_STATUS} == 0 ]]
 	then
-		### Begin: Determine if ASK_PASS is required
-		$(docker_cmd) exec -i ${CNTNRNAME} ansible "${HL}" -m debug -a 'msg={{ ansible_ssh_pass }}' &>/dev/null && [[ ${?} == 0 ]] && ASK_PASS=''
-		### End
 		### Begin: Define the extra-vars argument list
 		local EVARGS
 		EVARGS="{SVCFILE: '${SVCVAULT}', $(basename "${0}" | sed -e 's/\(.*\)\.sh/\1/'): true}"
+		### End
+		### Begin: Determine if ASK_PASS is required
+		$(docker_cmd) exec -i ${CNTNRNAME} ansible -i "${INVENTORY_PATH}" "$(echo "${HL}" | grep -v 'vcenter')" -m debug -a 'msg={{ ansible_ssh_pass }}' --extra-vars "${EVARGS}" -e @"${SVCVAULT}" --vault-password-file Bash/get_common_vault_pass.sh ${BCV} &>/dev/null && [[ ${?} == 0 ]] && ASK_PASS='' || ASK_PASS='--ask-pass'
+		### End
 		if [[ -z ${MYINVOKER+x} ]]
 		then
-			$(docker_cmd) exec -t ${CNTNRNAME} ansible-playbook playbooks/site.yml -i "${INVENTORY_PATH}" --extra-vars "${EVARGS}" ${ASK_PASS} -e @"${SVCVAULT}" --vault-password-file Bash/get_common_vault_pass.sh -e @"${ANSIBLE_VARS}" -e "{auto_dir: '${CONTAINERWD}'}" ${ANSIBLE_CMD_ARGS} -v 2> "${ANSIBLE_LOG_LOCATION}"/"${PID}".stderr
+			$(docker_cmd) exec -t ${CNTNRNAME} ansible-playbook playbooks/site.yml -i "${INVENTORY_PATH}" --extra-vars "${EVARGS}" ${ASK_PASS} -e @"${SVCVAULT}" --vault-password-file Bash/get_common_vault_pass.sh -e @"${ANSIBLE_VARS}" -e "{auto_dir: '${CONTAINERWD}'}" ${ANSIBLE_CMD_ARGS} -v 2> "${ANSIBLE_LOG_LOCATION}"/"${PID}"-run_playbook.stderr
 		else
-			$(docker_cmd) exec -e MYINVOKER="${MYINVOKER}" -t ${CNTNRNAME} ansible-playbook playbooks/site.yml -i "${INVENTORY_PATH}" --extra-vars "${EVARGS}" ${ASK_PASS} -e @"${SVCVAULT}" --vault-password-file Bash/get_common_vault_pass.sh -e @"${ANSIBLE_VARS}" -e "{auto_dir: '${CONTAINERWD}'}" ${ANSIBLE_CMD_ARGS} -v 2> "${ANSIBLE_LOG_LOCATION}"/"${PID}".stderr 1>/dev/null
+			$(docker_cmd) exec -e MYINVOKER="${MYINVOKER}" -t ${CNTNRNAME} ansible-playbook playbooks/site.yml -i "${INVENTORY_PATH}" --extra-vars "${EVARGS}" ${ASK_PASS} -e @"${SVCVAULT}" --vault-password-file Bash/get_common_vault_pass.sh -e @"${ANSIBLE_VARS}" -e "{auto_dir: '${CONTAINERWD}'}" ${ANSIBLE_CMD_ARGS} -v 2> "${ANSIBLE_LOG_LOCATION}"/"${PID}"-run_playbook.stderr 1>/dev/null
 		fi
-		[[ $(grep "no vault secrets were found that could decrypt" "${ANSIBLE_LOG_LOCATION}"/"${PID}".stderr | grep  "${SVCVAULT}") != "" ]] && echo -e "\nUnable to decrypt ${BOLD}${SVCVAULT}${NORMAL}" && EC=1
-		[[ $(grep "no vault secrets were found that could decrypt" "${ANSIBLE_LOG_LOCATION}"/"${PID}".stderr) == "" ]] && [[ $(grep -i warning "${ANSIBLE_LOG_LOCATION}"/"${PID}".stderr) == '' ]] && cat "${ANSIBLE_LOG_LOCATION}"/"${PID}".stderr
-		rm -f "${ANSIBLE_LOG_LOCATION}"/"${PID}".stderr
+		[[ $(grep "no vault secrets were found that could decrypt" "${ANSIBLE_LOG_LOCATION}"/"${PID}"-run_playbook.stderr | grep "${SVCVAULT}") != "" ]] && echo -e "\nUnable to decrypt ${BOLD}${SVCVAULT}${NORMAL}" && EC=1
+		[[ $(grep "no vault secrets were found that could decrypt" "${ANSIBLE_LOG_LOCATION}"/"${PID}"-run_playbook.stderr) == "" ]] && [[ $(grep -i warning "${ANSIBLE_LOG_LOCATION}"/"${PID}"-run_playbook.stderr) == '' ]] && cat "${ANSIBLE_LOG_LOCATION}"/"${PID}"-run_playbook.stderr
+		rm -f "${ANSIBLE_LOG_LOCATION}"/"${PID}"-run_playbook.stderr
 		[[ ${EC} == 1 ]] && exit 1
 	fi
 }
