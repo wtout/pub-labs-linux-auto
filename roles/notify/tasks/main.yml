@@ -13,14 +13,14 @@
     check_mode: no
     become: yes
   - name: Get playbook status from {{ LFILE }}
-    ansible.builtin.shell: "grep 'PLAY RECAP' {{ LFILE }} &>/dev/null && sed -n '/PLAY RECAP /{h;b};H;${x;p}' {{ LFILE }} | sed -n '/PLAY RECAP /,+{{ NHOSTS }}p' | grep -v awk | grep -E 'PLAY RECAP|(unreachable|failed)=[1-9]+' || echo 'No Play Recap found'"
+    ansible.builtin.shell: "grep 'PLAY RECAP' {{ LFILE }} >/dev/null 2>&1 && sed -n '/PLAY RECAP /,/=====/{/=====/!p;}' {{ LFILE }} | grep -E 'PLAY RECAP|(unreachable|failed)=[1-9]+' || echo 'No Play Recap found'"
     register: playbook_status
-  - name: define notifcation message
+  - name: define execution status
     ansible.builtin.set_fact:
-      NOTIF_MSG: "{{ NOTIF_MSG | default ([]) + [((line_item | regex_replace ('^.*[\\|] ', '')).split(' : ')|first).strip()] }}"
+      EXEC_STATUS: "{{ EXEC_STATUS | default ([]) + [((line_item | regex_replace ('^.*[\\|] ', '')).split(' : ')|first).strip()] }}"
     loop: "{{ playbook_status.stdout_lines | select('regex', '(unreachable=|failed=)[1-9]+') }}"
     loop_control:
       loop_var: line_item
   - ansible.builtin.assert:
-      that: NOTIF_MSG|default([]) == []
+      that: EXEC_STATUS|default([]) == []
   tags: [ 'never', 'notify' ]
