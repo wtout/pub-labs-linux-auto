@@ -39,10 +39,11 @@ fi
 kill_container "${CONTAINERNAME}"
 if [[ ${CHECK_UPDATE_STATUS} -eq 3 ]]
 then
-	exit 1
+	exit 3
 else
 ###############################################
 	BGPIDS=""
+	AC=0
 	[[ "${ENV_LIST_LENGTH}" -gt 1 ]] && echo
 	for i in "${!LOOP_LIST[@]}"
 	do
@@ -66,18 +67,18 @@ else
 	[[ "${ENV_LIST_LENGTH}" -gt 1 ]] && echo "Please wait..."
 	for i in "${!BGPIDS_LIST[@]}"
 	do
-		if wait "${BGPIDS_LIST[i]}"
+		wait "${BGPIDS_LIST[i]}"
+		EC="${?}"
+		if [[ "${EC}" -ne 0 ]]
 		then
-			EC=0
-		else
-			[[ "${ENV_LIST_LENGTH}" -gt 1 ]] && echo "System ${LOOP_LIST[i]} failed"
-			EC=1
+			[[ "${ENV_LIST_LENGTH}" -gt 1 ]] && echo "System ${LOOP_LIST[i]} failed with exit code ${EC}"
 		fi
+		[[ "${AC}" -eq 0 ]] && AC="${EC}"
 	done
 	# Clean up
 	remove_secrets_vault
 	remove_write_permission "${PWD}/vars"
 	remove_write_permission "${PWD}/roles"
 	find "${PWD}/roles" -type d -exec chmod 755 {} \;
-	exit "${EC}"
+	exit "${AC}"
 fi

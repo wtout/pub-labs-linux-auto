@@ -228,9 +228,9 @@ function start_container() {
 		[[ $- =~ x ]] && debug=1 && [[ "${SECON}" == "true" ]] && set +x
 		if [[ "${ANSIBLE_LOG_PATH}" == "" ]]
 		then
-			$(docker_cmd) run --rm -e MYPROXY=${PROXY_ADDRESS} -e MYHOME=${HOME} -e MYHOSTNAME=$(hostname) -e MYCONTAINERNAME=${CNTNRNAME} -e MYIP=$(get_host_ip) --user ansible -w ${CONTAINERWD} -v /data:/data:z -v /tmp:/tmp:z -v ${PWD}:${CONTAINERWD}:z --name ${CNTNRNAME} -t -d --entrypoint /bin/bash ${CONTAINERREPO}:${ANSIBLE_VERSION} 1>/dev/null
+			$(docker_cmd) run --rm -e MYPROXY=${PROXY_ADDRESS} -e MYHOME=${PWD} -e MYHOSTNAME=$(hostname) -e MYCONTAINERNAME=${CNTNRNAME} -e MYIP=$(get_host_ip) --user ansible -w ${CONTAINERWD} -v /data:/data:z -v /tmp:/tmp:z -v ${PWD}:${CONTAINERWD}:z --name ${CNTNRNAME} -t -d --entrypoint /bin/bash ${CONTAINERREPO}:${ANSIBLE_VERSION} 1>/dev/null
 		else
-			$(docker_cmd) run --rm -e ANSIBLE_LOG_PATH=${ANSIBLE_LOG_PATH} -e ANSIBLE_FORKS=${NUM_HOSTSINPLAY} -e MYPROXY=${PROXY_ADDRESS} -e MYHOME=${HOME} -e MYHOSTNAME=$(hostname) -e MYCONTAINERNAME=${CNTNRNAME} -e MYIP=$(get_host_ip) -e MYHOSTOS=$(get_os) --user ansible -w ${CONTAINERWD} -v /data:/data:z -v /tmp:/tmp:z -v ${HOME}/.ssh:/home/ansible/.ssh:z -v ${PWD}:${CONTAINERWD}:z --name ${CNTNRNAME} -t -d --entrypoint /bin/bash ${CONTAINERREPO}:${ANSIBLE_VERSION} 1>/dev/null
+			$(docker_cmd) run --rm -e ANSIBLE_LOG_PATH=${ANSIBLE_LOG_PATH} -e ANSIBLE_FORKS=${NUM_HOSTSINPLAY} -e MYPROXY=${PROXY_ADDRESS} -e MYHOME=${PWD} -e MYHOSTNAME=$(hostname) -e MYCONTAINERNAME=${CNTNRNAME} -e MYIP=$(get_host_ip) -e MYHOSTOS=$(get_os) --user ansible -w ${CONTAINERWD} -v /data:/data:z -v /tmp:/tmp:z -v ${HOME}/.ssh:/home/ansible/.ssh:z -v ${PWD}:${CONTAINERWD}:z --name ${CNTNRNAME} -t -d --entrypoint /bin/bash ${CONTAINERREPO}:${ANSIBLE_VERSION} 1>/dev/null
 		fi
 		[[ ${debug} == 1 ]] && set -x
 		[[ $(check_container "${CNTNRNAME}"; echo "${?}") -ne 0 ]] && echo "Unable to start container ${CNTNRNAME}" && exit 1
@@ -612,7 +612,11 @@ function get_secrets_vault() {
 				git clone --branch ${localbranch} --single-branch "$(echo "${REMOTEURL}" | sed -e "s|pub-||" -e "s|auto|auto-secrets|")" .tmp &>"${ANSIBLE_LOG_LOCATION}"/"${PID}"-get-secrets-vault.stderr
 				[[ ${?} -eq 0 ]] && break || CLONE_FAILED="true"
 			done
-			[[ "${CLONE_FAILED}" ]] && echo -e "${BOLD}Unable to download the secrets vault${NORMAL}" && cat "${ANSIBLE_LOG_LOCATION}"/"${PID}"-get-secrets-vault.stderr && EC=1
+			if [[ "${CLONE_FAILED}" ]]
+			then
+				[[ "$(grep 'Invalid username or password' "${ANSIBLE_LOG_LOCATION}"/"${PID}"-get-secrets-vault.stderr)" != '' ]] && rm -f "${REPOVAULT}"
+				echo -e "${BOLD}Unable to download the secrets vault${NORMAL}" && cat "${ANSIBLE_LOG_LOCATION}"/"${PID}"-get-secrets-vault.stderr && EC=1
+			fi
 			rm -f "${ANSIBLE_LOG_LOCATION}"/"${PID}"-get-secrets-vault.stderr
 			[[ ${EC} == 1 ]] && exit ${EC}
 			[[ ${debug} == 1 ]] && set -x
@@ -803,14 +807,19 @@ function run_playbook() {
 	local CNTNRNAME
 	CNTNRNAME="${1}"
 	ANSIBLE_CMD_ARGS=$(echo "${@}" | sed "s/${CNTNRNAME} //")
-	if [[ ${GET_INVENTORY_STATUS} == 0 ]]
+	if [[ "${GET_INVENTORY_STATUS}" -eq 0 ]]
 	then
 		### Begin: Define the extra-vars argument list
 		local EVARGS
 		EVARGS="{SVCFILE: '${SVCVAULT}', $(basename "${0}" | sed -e 's/\(.*\)\.sh/\1/'): true}"
 		### End
 		### Begin: Determine if ASK_PASS is required
-		$(docker_cmd) exec -i ${CNTNRNAME} ansible -i "${INVENTORY_PATH}" "$(echo "${HL}" | grep -v 'vcenter')" -m debug -a 'msg={{ ansible_ssh_pass }}' --extra-vars "${EVARGS}" -e @"${SVCVAULT}" --vault-password-file Bash/get_common_vault_pass.sh ${BCV} &>/dev/null && [[ ${?} == 0 ]] && ASK_PASS='' || ASK_PASS='--ask-pass'
+		if [[ "$(echo "${HL}" | grep -v 'vcenter')" == "" ]]
+		then
+			ASK_PASS=''
+		else
+			$(docker_cmd) exec -i ${CNTNRNAME} ansible -i "${INVENTORY_PATH}" "$(echo "${HL}" | grep -v 'vcenter')" -m debug -a 'msg={{ ansible_ssh_pass }}' --extra-vars "${EVARGS}" -e @"${SVCVAULT}" --vault-password-file Bash/get_common_vault_pass.sh &>/dev/null && [[ ${?} == 0 ]] && ASK_PASS='' || ASK_PASS='--ask-pass'
+		fi
 		### End
 		if [[ -z ${MYINVOKER+x} ]]
 		then
@@ -843,11 +852,11 @@ function send_notification() {
 	local CNTNRNAME
 	CNTNRNAME="${1}"
 	ANSIBLE_CMD_ARGS=$(echo "${@}" | sed "s/${CNTNRNAME} //")
-	if [[ "$(check_mode "${@}")" == " " ]]
+	if [[ "$(check_mode "${ANSIBLE_CMD_ARGS}")" == " " ]]
 	then
 		# Send playbook status notification
 		NOTIF_ARGS=$(echo "${ANSIBLE_CMD_ARGS}" | tr ' ' '\n' | sed -e '/--tags\|-t\|--limit\|-l\|--envname/,+1d' | tr '\n' ' ')
-		$(docker_cmd) exec -t ${CNTNRNAME} ansible-playbook playbooks/notify.yml --extra-vars "{SVCFILE: '${CONTAINERWD}/${SVCVAULT}', LFILE: '${CONTAINERWD}/${NEW_LOG_FILE}', NHOSTS: '${NUM_HOSTSINPLAY}'}" --tags notify -e @"${SVCVAULT}" --vault-password-file Bash/get_common_vault_pass.sh -e @"${ANSIBLE_VARS}" ${NOTIF_ARGS} -v &>/dev/null
+		$(docker_cmd) exec -t ${CNTNRNAME} ansible-playbook playbooks/notify.yml --extra-vars "{SVCFILE: '${CONTAINERWD}/${SVCVAULT}', LFILE: '${CONTAINERWD}/${NEW_LOG_FILE}'}" --tags notify -e @"${SVCVAULT}" --vault-password-file Bash/get_common_vault_pass.sh -e @"${ANSIBLE_VARS}" ${NOTIF_ARGS} -v &>/dev/null
 		SCRIPT_STATUS=${?}
 	fi
 }
