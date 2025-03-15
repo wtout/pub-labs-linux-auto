@@ -1,0 +1,12 @@
+---
+# Tasks to create the Ubuntu autoinstall data files
+- block:
+  - name: Create Ubuntu meta-data file
+    ansible.builtin.file:
+      path: "{{ role_path }}/files/{{ vm.name }}-tmpdir/source_files/server/meta-data"
+      state: touch
+  - name: Create Ubuntu user-data file
+    ansible.builtin.template:
+      src: "templates/ubuntu_user-data.tmpl"
+      dest: "{{ role_path }}/files/{{ vm.name }}-tmpdir/source_files/server/user-data"
+  delegate_to: localhost

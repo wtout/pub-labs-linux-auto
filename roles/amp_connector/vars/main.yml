@@ -1,0 +1,3 @@
+---
+# vars file for amp_connector
+distro_loc: 'https://alln-cloud-storage-1.cisco.com/CX_Labs:cxlabs-soc/AMP-Connectors/AMER/amp_CX_Labs_AMER_'

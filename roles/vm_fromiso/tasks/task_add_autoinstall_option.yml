@@ -1,0 +1,15 @@
+---
+# Tasks to add the Autoinstall option
+- block:
+  - name: Add Autoinstall option to grub.cfg
+    ansible.builtin.lineinfile:
+      path: "{{ role_path }}/files/{{ vm.name }}-tmpdir/source_files/boot/grub/grub.cfg"
+      regex: '^({{ line_item.regexp }}).*$'
+      line: '\g<1>{{ line_item.value }}'
+      backrefs: yes
+    loop:
+      - { regexp: 'set timeout=', value: '1' }
+      - { regexp: 'set menu_color_highlight=black/light-gray\n', value: '\nmenuentry "Autoinstall Ubuntu Server" {\n    set gfxpayload=keep\n    linux   /casper/vmlinuz quiet autoinstall ds=nocloud\;s=/cdrom/server/  ---\n    initrd  /casper/initrd\n}' }
+    loop_control:
+      loop_var: line_item
+  delegate_to: localhost

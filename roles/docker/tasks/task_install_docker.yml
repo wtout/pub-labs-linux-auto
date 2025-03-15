@@ -1,0 +1,55 @@
+---
+# Tasks to install Docker
+- block:
+  - name: get the Linux distribution
+    ansible.builtin.setup:
+      filter:
+        - 'ansible_distribution'
+  - block:
+    - name: Install Podman-Docker
+      ansible.builtin.yum:
+        name: 'podman-docker'
+        state: installed
+    - name: create the /etc/containers/nodocker file
+      ansible.builtin.file:
+        path: /etc/containers/nodocker
+        state: touch
+    - name: set ignore_chown_errors to true in /etc/containers/storage.conf
+      ansible.builtin.replace:
+        path: /etc/containers/storage.conf
+        regexp: '^(ignore_chown_errors =) "false"$'
+        replace: '\g<1> "true"'
+    - name: define REGISTRY_AUTH_FILE
+      ansible.builtin.lineinfile:
+        line: "{{ line_item.toadd }}"
+        path: "{{ line_item.filename }}"
+      loop:
+        - {filename: '/etc/environment', toadd: 'export REGISTRY_AUTH_FILE="${HOME}/.podman/auth.json"'}
+        - {filename: '/etc/bashrc', toadd: 'source /etc/environment'}
+      loop_control:
+        loop_var: line_item
+    when: ansible_facts.distribution == 'AlmaLinux'
+  - name: Install Docker
+    ansible.builtin.yum:
+      name: 'docker'
+      state: installed
+    notify:
+      - create docker group
+      - add user to docker group
+      - create docker service directory
+      - add proxy to docker
+      - start docker
+      - reboot the node
+    when: ansible_facts.distribution == 'CentOS'
+  - block:
+    - name: Install Podman-Docker
+      ansible.builtin.apt:
+        name: 'podman-docker'
+        state: present
+        update_cache: true
+    - name: create the /etc/containers/nodocker file
+      ansible.builtin.file:
+        path: /etc/containers/nodocker
+        state: touch
+    when: ansible_facts.distribution == 'Ubuntu'
+  become: true
