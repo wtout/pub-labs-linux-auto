@@ -1,21 +1,26 @@
 ---
 # tasks file for capcheck
-- block:
-  - include_tasks: task_get_required_space.yml
-
-  - block:
-# Not to be used until https://github.com/ansible/ansible/pull/67641 is released
-#    - include_tasks: task_get_hosts_list.yml
-#      when:
-#        - information.resources is not defined or information.resources == []
-
-    - include_tasks: task_get_datastore_info.yml
-    when:
-      - information.deptype == 'h'
-
-  - include_tasks: task_get_host_facts.yml
-    when:
-      - information.deptype == 'a'
-
+- name: Main capcheck block
   when: capcheck | default(false) | bool
   tags: ['capcheck', 'vm_creation']
+  block:
+    - name: Get required space
+      ansible.builtin.include_tasks: task_get_required_space.yml
+
+    - name: Get datastore info
+      when:
+        - information.deptype == 'h'
+      block:
+      #  Not to be used until https://github.com/ansible/ansible/pull/67641 is released
+      #  - name: Get hosts list
+      #    ansible.builtin.include_tasks: task_get_hosts_list.yml
+      #    when:
+      #      - information.resources is not defined or information.resources == []
+
+        - name: Get datastore info
+          ansible.builtin.include_tasks: task_get_datastore_info.yml
+
+    - name: Get hosts facts
+      ansible.builtin.include_tasks: task_get_host_facts.yml
+      when:
+        - information.deptype == 'a'

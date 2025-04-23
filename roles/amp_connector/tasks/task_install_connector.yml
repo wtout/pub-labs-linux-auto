@@ -1,41 +1,43 @@
 ---
 # tasks file to install the connector package
-- block:
-  - block:
-    - name: check if AMP connector is installed
-      ansible.builtin.apt:
-        name: ciscoampconnector
-        state: absent
-      register: reg_ac_installed
-      check_mode: yes
-      failed_when: reg_ac_installed is not changed
-    rescue:
-    - name: enable SSL Legacy Renegotiation
-      ansible.builtin.replace:
-        path: /etc/ssl/openssl.cnf
-        regexp: '^(CipherString = DEFAULT:@SECLEVEL=2)$'
-        replace: '#\g<1>\nOptions = UnsafeLegacyRenegotiation'
-    - name: install the amp connector package
-      ansible.builtin.apt:
-        deb: "{{ distro_loc }}{{ distro_name }}"
-    - name: disable SSL Legacy Renegotiation
-      ansible.builtin.replace:
-        path: /etc/ssl/openssl.cnf
-        regexp: '^#(CipherString = DEFAULT:@SECLEVEL=2)\n.*$'
-        replace: '\g<1>'
-    when: ansible_facts.distribution == 'Ubuntu'
-  - name: install the amp connector package
-    ansible.builtin.dnf:
-      name: "{{ distro_loc }}{{ distro_name }}"
-      state: latest
-      disable_gpg_check: true
-    when: ansible_facts.distribution == 'AlmaLinux'
-  - name: install the amp connector package
-    ansible.builtin.yum:
-      name: "{{ distro_loc }}{{ distro_name }}"
-      state: latest
-      disable_gpg_check: true
-    when: ansible_facts.distribution == 'CentOS'
+- name: Installing the connector packages
   vars:
-    distro_name: "{{ 'ubuntu-22-04-debian-12.deb' if ansible_facts.distribution == 'Ubuntu' and ansible_facts.distribution_version == '22.04' else 'rhel-alma-rocky-9.rpm' if ansible_facts.distribution == 'AlmaLinux' and ansible_facts.distribution_major_version == '9' else 'rhel-centos-alma-rocky-8.rpm' if ansible_facts.distribution == 'AlmaLinux' and ansible_facts.distribution_major_version == '8' else 'rhel-centos-7.rpm' }}"
+    distro_name: "{{ 'ubuntu-22-04-debian-12.deb' if ansible_facts.distribution == 'Ubuntu' and ansible_facts.distribution_version == '22.04' else 'rhel-alma-rocky-9.rpm' if ansible_facts.distribution == 'AlmaLinux' and ansible_facts.distribution_major_version == '9' else 'rhel-centos-alma-rocky-8.rpm' if ansible_facts.distribution == 'AlmaLinux' and ansible_facts.distribution_major_version == '8' else 'rhel-centos-7.rpm' }}" # noqa: yaml[line-length]
   become: "{{ true if ansible_user != 'root' else false }}"
+  block:
+    - name: Install the AMP connector package
+      when: ansible_facts.distribution == 'Ubuntu'
+      block:
+        - name: Check if AMP connector is installed
+          ansible.builtin.apt:
+            name: ciscoampconnector
+            state: absent
+          register: reg_ac_installed
+          check_mode: true
+          failed_when: reg_ac_installed is not changed
+      rescue:
+        - name: Enable SSL Legacy Renegotiation
+          ansible.builtin.replace:
+            path: /etc/ssl/openssl.cnf
+            regexp: '^(CipherString = DEFAULT:@SECLEVEL=2)$'
+            replace: '#\g<1>\nOptions = UnsafeLegacyRenegotiation'
+        - name: Install the AMP connector package
+          ansible.builtin.apt:
+            deb: "{{ distro_loc }}{{ distro_name }}"
+        - name: Disable SSL Legacy Renegotiation
+          ansible.builtin.replace:
+            path: /etc/ssl/openssl.cnf
+            regexp: '^#(CipherString = DEFAULT:@SECLEVEL=2)\n.*$'
+            replace: '\g<1>'
+    - name: Install the AMP connector package
+      ansible.builtin.dnf:
+        name: "{{ distro_loc }}{{ distro_name }}"
+        state: installed
+        disable_gpg_check: true
+      when: ansible_facts.distribution == 'AlmaLinux'
+    - name: Install the AMP connector package
+      ansible.builtin.yum:
+        name: "{{ distro_loc }}{{ distro_name }}"
+        state: installed
+        disable_gpg_check: true
+      when: ansible_facts.distribution == 'CentOS'

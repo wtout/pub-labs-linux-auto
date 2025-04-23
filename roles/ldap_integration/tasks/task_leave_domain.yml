@@ -1,78 +1,90 @@
 ---
 # Tasks to leave the AD domain
-- block:
-  - block:
-    - name: leave the {{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }} domain
-      ansible.builtin.shell: echo '{{ infra_admin_pass }}' | realm leave -v -U {{ infra_admin_user }} {{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }}
-      register: reg_leave_domain
-      failed_when:
-        - reg_leave_domain.rc == 1
-        - reg_leave_domain.stderr is not search('Couldn\'t find a matching realm')
-      no_log: yes
-    rescue:
-    - ansible.builtin.debug:
-        msg: "{{ reg_leave_domain|replace(infra_admin_pass,'obfuscated') }}"
-  - name: get the Linux distribution
-    ansible.builtin.setup:
-      filter:
-        - 'distribution*'
-  - block:
-    - name: check if domain users are allowed to do sudo
-      ansible.builtin.lineinfile:
-        path: /etc/sudoers
-        regexp: '^%domain.*ALL$'
-        state: absent
-      check_mode: yes
-      register: reg_ds_check
-      failed_when: reg_ds_check is failed or reg_ds_check is changed
-    rescue:
-    - name: disallow domain users to do sudo
-      ansible.builtin.lineinfile:
-        path: /etc/sudoers
-        regexp: '{{ line_item }}'
-        state: absent
-        validate: /usr/sbin/visudo -cf %s
-      loop:
-        - '^## Allows members of the "domain .*" group to.*$'
-        - '^%domain.*ALL$\n'
-      loop_control:
-        loop_var: line_item
-    - name: delete consecutive blank lines
-      ansible.builtin.replace:
-        path: /etc/sudoers
-        regexp: '{{ line_item }}'
-        replace: ''
-        validate: /usr/sbin/visudo -cf %s
-      loop:
-        - '^\n\n$'
-      loop_control:
-        loop_var: line_item
-  - block:
-    - name: check if domain users are allowed to SSH to VM
-      ansible.builtin.lineinfile:
-        path: /etc/ssh/sshd_config
-        regexp: '^AllowGroups.*"domain users"'
-        state: absent
-      check_mode: yes
-      register: reg_ssh_check
-      failed_when: reg_ssh_check is failed or reg_ssh_check is changed
-    rescue:
-    - name: disallow domain users to SSH to VM
-      ansible.builtin.replace:
-        path: /etc/ssh/sshd_config
-        regexp: '^(AllowGroups.*)"domain users"$'
-        replace: '\g<1>'
-      notify: restart sshd
-    when:
-      - ansible_facts.distribution == 'CentOS'
-  rescue:
-  - ansible.builtin.debug:
-      msg:
-        - 'Leaving the domain failed'
-        - ''
-        - "{{ reg_leave_domain|replace(infra_admin_pass,'obfuscated') }}"
-  always:
-  - ansible.builtin.assert:
-      that:
-        - reg_leave_domain is succeeded
+- name: Leave the AD domain
   become: "{{ true if ansible_user != 'root' else false }}"
+  vars:
+    mydomain: "{{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }}"
+  block:
+    - name: Leave the domain
+      block:
+        - name: Leave the {{ mydomain + ' domain' }}
+          ansible.builtin.shell:
+            cmd: set -o pipefail && echo '{{ infra_admin_pass }}' | realm leave -v -U {{ infra_admin_user }} {{ mydomain }}
+            executable: /bin/bash
+          register: reg_leave_domain
+          changed_when: reg_leave_domain.rc == 0
+          failed_when:
+            - reg_leave_domain.rc == 1
+            - reg_leave_domain.stderr is not search('Couldn\'t find a matching realm')
+          no_log: true
+      rescue:
+        - name: Debug message
+          ansible.builtin.debug:
+            msg: "{{ reg_leave_domain | replace(infra_admin_pass, 'obfuscated') }}"
+    - name: Get the Linux distribution
+      ansible.builtin.setup:
+        filter:
+          - 'distribution*'
+    - name: Disallow sudo for domain users
+      block:
+        - name: Check if domain users are allowed to do sudo
+          ansible.builtin.lineinfile:
+            path: /etc/sudoers
+            regexp: '^%domain.*ALL$'
+            state: absent
+          check_mode: true
+          register: reg_ds_check
+          failed_when: reg_ds_check is failed or reg_ds_check is changed
+      rescue:
+        - name: Disallow domain users to do sudo
+          ansible.builtin.lineinfile:
+            path: /etc/sudoers
+            regexp: '{{ line_item }}'
+            state: absent
+            validate: /usr/sbin/visudo -cf %s
+          loop:
+            - '^## Allows members of the "domain .*" group to.*$'
+            - '^%domain.*ALL$\n'
+          loop_control:
+            loop_var: line_item
+        - name: Delete consecutive blank lines
+          ansible.builtin.replace:
+            path: /etc/sudoers
+            regexp: '{{ line_item }}'
+            replace: ''
+            validate: /usr/sbin/visudo -cf %s
+          loop:
+            - '^\n\n$'
+          loop_control:
+            loop_var: line_item
+    - name: Disallow SSH for domain users
+      when:
+        - ansible_facts.distribution == 'CentOS'
+      block:
+        - name: Check if domain users are allowed to SSH to VM
+          ansible.builtin.lineinfile:
+            path: /etc/ssh/sshd_config
+            regexp: '^AllowGroups.*"domain users"'
+            state: absent
+          check_mode: true
+          register: reg_ssh_check
+          failed_when: reg_ssh_check is failed or reg_ssh_check is changed
+      rescue:
+        - name: Disallow domain users to SSH to VM
+          ansible.builtin.replace:
+            path: /etc/ssh/sshd_config
+            regexp: '^(AllowGroups.*)"domain users"$'
+            replace: '\g<1>'
+          notify: Restart sshd
+  rescue:
+    - name: Debug message
+      ansible.builtin.debug:
+        msg:
+          - 'Leaving the domain failed'
+          - ''
+          - "{{ reg_leave_domain | replace(infra_admin_pass, 'obfuscated') }}"
+  always:
+    - name: Assert that leaving the domain succeeded
+      ansible.builtin.assert:
+        that:
+          - reg_leave_domain is succeeded

@@ -1,34 +1,42 @@
 ---
 # Tasks for vm_facts
-- block:
-  - block:
-    - name: get list of stack groups in play
-      ansible.builtin.set_fact:
-        play_stack_group_list: "{{ play_stack_group_list|default([]) | union([host_item[:-2]]) }}"
-      loop: "{{ ansible_play_hosts | reject('search', 'dr|vcenter') | list }}"
-      loop_control:
-        loop_var: host_item
-        label: "{{ host_item }}"
-    - name: get list of DR groups in play
-      ansible.builtin.set_fact:
-        play_dr_group_list: "{{ play_dr_group_list|default([]) | union([host_item[:-2]]) }}"
-      loop: "{{ ansible_play_hosts | select('match', 'dr') | reject('search', 'vcenter') | list }}"
-      loop_control:
-        loop_var: host_item
-        label: "{{ host_item }}"
-      when: build.disaster_recovery
-    when: ansible_run_tags != ['docker']
-    run_once: true
-  - include_tasks: task_check_cluster_name.yml
-    when: ansible_run_tags != ['docker']
-  - block:
-    - block:
-      - include_tasks: task_define_vm_disk_size.yml
-      - include_tasks: task_define_groups_list.yml
-      when:
-        - ansible_run_tags != ['docker']
-        - deploy | default(false)
-    - include_tasks: task_define_vm_ip.yml
-    when:
-      - "'stack' in group_names or (build.disaster_recovery and 'dr' in group_names)"
+- name: Main vm_facts block
   tags: ['always', 'vm_facts']
+  block:
+    - name: Tasks to do if ansible_run_tags does not contain "docker"
+      when: ansible_run_tags != ['docker']
+      run_once: true
+      block:
+        - name: Get list of stack groups in play
+          ansible.builtin.set_fact:
+            play_stack_group_list: "{{ play_stack_group_list | default([]) | union([host_item[:-2]]) }}"
+          loop: "{{ ansible_play_hosts | reject('search', 'dr|vcenter') | list }}"
+          loop_control:
+            loop_var: host_item
+            label: "{{ host_item }}"
+        - name: Get list of DR groups in play
+          ansible.builtin.set_fact:
+            play_dr_group_list: "{{ play_dr_group_list | default([]) | union([host_item[:-2]]) }}"
+          loop: "{{ ansible_play_hosts | select('match', 'dr') | reject('search', 'vcenter') | list }}"
+          loop_control:
+            loop_var: host_item
+            label: "{{ host_item }}"
+          when: build.disaster_recovery
+    - name: Check cluster empty
+      ansible.builtin.include_tasks: task_check_cluster_name.yml
+      when: ansible_run_tags != ['docker']
+    - name: Getting VM facts
+      when:
+        - "'stack' in group_names or (build.disaster_recovery and 'dr' in group_names)"
+      block:
+        - name: More tasks to do if ansible_run_tags does not contain "docker"
+          when:
+            - ansible_run_tags != ['docker']
+            - deploy | default(false)
+          block:
+            - name: Define VM disk size
+              ansible.builtin.include_tasks: task_define_vm_disk_size.yml
+            - name: Define groups list
+              ansible.builtin.include_tasks: task_define_groups_list.yml
+        - name: Define VM IP
+          ansible.builtin.include_tasks: task_define_vm_ip.yml

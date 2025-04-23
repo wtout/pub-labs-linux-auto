@@ -1,6 +1,6 @@
 ---
 # Tasks to create the VM folder
-- name: Create the {{ folder_name }} folder
+- name: Create the {{ folder_name + ' folder' }}
   community.vmware.vcenter_folder:
     hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
     username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
@@ -8,8 +8,8 @@
     datacenter_name: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
     folder_name: "{{ folder_name.split('/')[-1] }}"
     folder_type: vm
-    parent_folder: "{{ folder_name.split('/')[:-1]|join('/') }}"
+    parent_folder: "{{ folder_name.split('/')[:-1] | join('/') }}"
     state: present
-    validate_certs: no
+    validate_certs: false
   register: cust_folder
   delegate_to: localhost
