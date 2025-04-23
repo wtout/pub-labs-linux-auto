@@ -1,64 +1,90 @@
 ---
 # Tasks to create and configure VM pairs
-- block:
-  - include_tasks: task_get_vm_datastore.yml
-    when:
-      - hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datastore_cluster'] == '' or hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['deptype'] == 'h'
-  - block:
-    - block:
-      - include_tasks: task_unpack_ubuntu_iso.yml
-      - include_tasks: task_add_autoinstall_option.yml
-      - include_tasks: task_create_ubuntu_data_files.yml
-      - include_tasks: task_create_ubuntu_autoinstall_iso.yml
-      - include_tasks: task_copy_autoinstall_iso_to_vsphere.yml
-      when: build.version.os_iso|lower is search('ubuntu')
-    - block:
-      - include_tasks: task_create_kickstart_iso.yml
-      - include_tasks: task_copy_kickstart_iso_to_vsphere.yml
-      when: build.version.os_iso|lower is not search('ubuntu')
-    - include_tasks: task_deploy_iso_self_healing.yml
-    when:
-      - crecon | default(true) | bool
-      - "vcr_vm_reachable|default({'failed': true}) is skipped or vcr_vm_reachable|default({'failed': true}) is failed"
-      - "vcr_vm_connection|default({'failed': true}) is skipped or vcr_vm_connection|default({'failed': true}) is failed"
-  - include_tasks: task_update_custom_attributes.yml
-  - include_tasks: task_delete_gtw_nic1_self_healing.yml
-  - include_tasks: task_update_disks_self_healing.yml
-  - block:
-    - include_tasks: task_poweroff_vm.yml
-    - include_tasks: task_disconnect_cdrom.yml
-      when: build.version.os_iso|lower is not search('ubuntu')
-    - include_tasks: task_poweron_vm.yml
-    - include_tasks: task_delete_kickstart_files.yml
-    - include_tasks: task_update_default_route.yml
-    - include_tasks: task_add_gtw2.yml
-    when:
-      - crecon | default(true) | bool
-      - "vcr_vm_reachable|default({'failed': true}) is skipped or vcr_vm_reachable|default({'failed': true}) is failed"
-      - "vcr_vm_connection|default({'failed': true}) is skipped or vcr_vm_connection|default({'failed': true}) is failed"
-  - block:
-    - name: check disks order
-      ansible.builtin.shell: |
-        df -h | grep /boot | awk '{print $1}'
+- name: Get VM datastore
+  ansible.builtin.include_tasks: task_get_vm_datastore.yml
+  when:
+    - mydsc == '' or hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['deptype'] == 'h'
+  vars:
+    mydsc: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datastore_cluster'] }}"
+- name: Deploying ISO self healing
+  when:
+    - crecon | default(true) | bool
+    - "vcr_vm_reachable | default({'failed': true}) is skipped or vcr_vm_reachable | default({'failed': true}) is failed"
+    - "vcr_vm_connection | default({'failed': true}) is skipped or vcr_vm_connection | default({'failed': true}) is failed"
+  block:
+    - name: Creating Ubuntu autoinstall ISO
+      when: build.version.os_iso | lower is search('ubuntu')
+      block:
+        - name: Unpack Ubuntu ISO
+          ansible.builtin.include_tasks: task_unpack_ubuntu_iso.yml
+        - name: Add autoinstall option
+          ansible.builtin.include_tasks: task_add_autoinstall_option.yml
+        - name: Create Ubuntu data files
+          ansible.builtin.include_tasks: task_create_ubuntu_data_files.yml
+        - name: Create Ubuntu autoinstall ISO
+          ansible.builtin.include_tasks: task_create_ubuntu_autoinstall_iso.yml
+        - name: Copy autoinstall ISO to Vsphere
+          ansible.builtin.include_tasks: task_copy_autoinstall_iso_to_vsphere.yml
+    - name: Creating kickstart ISO
+      when: build.version.os_iso | lower is not search('ubuntu')
+      block:
+        - name: Create kickstart ISO
+          ansible.builtin.include_tasks: task_create_kickstart_iso.yml
+        - name: Copy kickstart ISO to Vsphere
+          ansible.builtin.include_tasks: task_copy_kickstart_iso_to_vsphere.yml
+    - name: Deploy ISO self healing
+      ansible.builtin.include_tasks: task_deploy_iso_self_healing.yml
+- name: Update custom attributes
+  ansible.builtin.include_tasks: task_update_custom_attributes.yml
+- name: Delete NIC1 gateway self healing
+  ansible.builtin.include_tasks: task_delete_gtw_nic1_self_healing.yml
+- name: Update disks self healing
+  ansible.builtin.include_tasks: task_update_disks_self_healing.yml
+- name: Configuring VM
+  when:
+    - crecon | default(true) | bool
+    - "vcr_vm_reachable | default({'failed': true}) is skipped or vcr_vm_reachable | default({'failed': true}) is failed"
+    - "vcr_vm_connection | default({'failed': true}) is skipped or vcr_vm_connection | default({'failed': true}) is failed"
+  block:
+    - name: Poweroff VM
+      ansible.builtin.include_tasks: task_poweroff_vm.yml
+    - name: Disconnect CDROM
+      ansible.builtin.include_tasks: task_disconnect_cdrom.yml
+      when: build.version.os_iso | lower is not search('ubuntu')
+    - name: Poweron VM
+      ansible.builtin.include_tasks: task_poweron_vm.yml
+    - name: Delete kickstart files
+      ansible.builtin.include_tasks: task_delete_kickstart_files.yml
+    - name: Update default route
+      ansible.builtin.include_tasks: task_update_default_route.yml
+    - name: Add NIC2 gateway
+      ansible.builtin.include_tasks: task_add_gtw2.yml
+- name: Fix disks order
+  when:
+    - build.version.os_iso | lower is not search('ubuntu')
+    - vmguest_disk0 is changed or vmguest_disk1 is changed or vmguest_disk2 is changed or vmguest_disk3 is changed
+    - disk_info.guest_disk_info | dict2items | length >= 2
+  block:
+    - name: Check disks order
+      ansible.builtin.shell:
+        cmd: set -o pipefail && df -h | grep /boot | awk '{print $1}'
+        executable: /bin/bash
       register: reg_boot
+      changed_when: false
       become: "{{ true if ansible_user != 'root' else false }}"
-    - name: reboot vm
+    - name: Reboot vm
       ansible.builtin.reboot:
         post_reboot_delay: 10
         reboot_timeout: 60
       when: reg_boot.stdout is not search('sda')
       become: "{{ true if ansible_user != 'root' else false }}"
-    when:
-      - build.version.os_iso|lower is not search('ubuntu')
-      - vmguest_disk0 is changed or vmguest_disk1 is changed or vmguest_disk2 is changed or vmguest_disk3 is changed
-      - disk_info.guest_disk_info | dict2items | length >= 2
-  - name: flush handlers
-    meta: flush_handlers
-  - name: delete /opt
-    ansible.builtin.file:
-      path: /opt
-      state: absent
-    become: "{{ true if ansible_user != 'root' else false }}"
-    when:
-      - build.version.os_iso|lower is search('ubuntu')
-      - vm.disk1_mount != '/opt'
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+- name: Delete /opt
+  ansible.builtin.file:
+    path: /opt
+    state: absent
+  become: "{{ true if ansible_user != 'root' else false }}"
+  when:
+    - build.version.os_iso | lower is search('ubuntu')
+    - vm.disk1_mount != '/opt'

@@ -1,224 +1,259 @@
 ---
 # handlers file for vm_fromiso
-- name: restart chrony
+- name: Restart chrony
   ansible.builtin.systemd:
     name: chronyd
     state: restarted
-    daemon_reload: yes
+    daemon_reload: true
   become: "{{ true if ansible_user != 'root' else false }}"
 
-- name: expand disk0
-  ansible.builtin.shell: |
-    for BUS in /sys/class/scsi_disk/*/device/rescan; do echo 1 > ${BUS}; done
-    {% if build.version.os_iso|lower is search('ubuntu') %}
-    echo "d\n2\nn\n2\n\n\nw\n" | fdisk /dev/sda
-    {% else %}
-    echo -e "d\n3\nn\np\n3\n\n\nw\n" | fdisk /dev/sda
-    {% endif %}
-    partprobe
-    xfs_growfs $(grep ' / ' /etc/fstab | grep -v '#' | awk '{print $2}')
+- name: Expand disk0
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      for BUS in /sys/class/scsi_disk/*/device/rescan; do echo 1 > ${BUS}; done
+      {% if build.version.os_iso | lower is search('ubuntu') %}
+      echo "d\n2\nn\n2\n\n\nw\n" | fdisk /dev/sda
+      {% else %}
+      echo -e "d\n3\nn\np\n3\n\n\nw\n" | fdisk /dev/sda
+      {% endif %}
+      partprobe
+      xfs_growfs $(grep ' / ' /etc/fstab | grep -v '#' | awk '{print $2}')
+    executable: /bin/bash
+  register: expand_disk0
+  changed_when: expand_disk0.rc == 0
   become: "{{ true if ansible_user != 'root' else false }}"
 
-- name: reboot vm
+- name: Reboot vm
   ansible.builtin.reboot:
     post_reboot_delay: 10
     reboot_timeout: 60
   become: "{{ true if ansible_user != 'root' else false }}"
 
-- name: expand disk1
-  ansible.builtin.shell: |
-    FSTYPE='xfs'
-    MP1=$(df -h | grep sdb1 | awk '{print $NF}')
-    umount ${MP1}
-    {{ 'sleep 2' if build.version.os_iso|lower is search('centos') else '' }}
-    [[ "${MP1}" != "{{ vm.disk1_mount }}" ]] && mv ${MP1} {{ vm.disk1_mount }}
-    for BUS in /sys/class/scsi_disk/*/device/rescan; do echo 1 > ${BUS}; done
-    parted -s /dev/sdb resizepart 1 100%
-    {{ 'sleep 2' if build.version.os_iso|lower is search('centos') else '' }}
-    disk1_uuid=$(blkid | grep sdb1 | awk '{print $2}' | sed 's|"||g; s|UUID=||')
-    sed -i "s|^\(.*${disk1_uuid}\) /[[:alnum:]]* ${FSTYPE}|\1 {{ vm.disk1_mount }} ${FSTYPE}|" /etc/fstab
-    {{ 'sleep 2' if build.version.os_iso|lower is search('centos') else '' }}
-    systemctl daemon-reload
-    mount -a
-    xfs_growfs -d {{ vm.disk1_mount }}
-  args:
+- name: Expand disk1
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      FSTYPE='xfs'
+      MP1=$(df -h | grep sdb1 | awk '{print $NF}')
+      umount ${MP1}
+      {{ 'sleep 2' if build.version.os_iso | lower is search('centos') else '' }}
+      [[ "${MP1}" != "{{ vm.disk1_mount }}" ]] && mv ${MP1} {{ vm.disk1_mount }}
+      for BUS in /sys/class/scsi_disk/*/device/rescan; do echo 1 > ${BUS}; done
+      parted -s /dev/sdb resizepart 1 100%
+      {{ 'sleep 2' if build.version.os_iso | lower is search('centos') else '' }}
+      disk1_uuid=$(blkid | grep sdb1 | awk '{print $2}' | sed 's|"||g; s|UUID=||')
+      sed -i "s|^\(.*${disk1_uuid}\) /[[:alnum:]]* ${FSTYPE}|\1 {{ vm.disk1_mount }} ${FSTYPE}|" /etc/fstab
+      {{ 'sleep 2' if build.version.os_iso | lower is search('centos') else '' }}
+      systemctl daemon-reload
+      mount -a
+      xfs_growfs -d {{ vm.disk1_mount }}
     executable: /bin/bash
+  register: expand_disk1
+  changed_when: expand_disk1.rc == 0
   become: "{{ true if ansible_user != 'root' else false }}"
 
-- name: add disk1
-  ansible.builtin.shell: |
-    for BUS in /sys/class/scsi_host/host*/scan; do echo "- - -" > ${BUS}; done
-    {% if build.version.os_iso|lower is search('ubuntu') %}
-    echo "n\np\n\n\n\nw\n" | fdisk /dev/sdb
-    {% else %}
-    echo -e "n\np\n\n\n\nw\n" | fdisk /dev/sdb
-    {% endif %}
+- name: Add disk1
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      for BUS in /sys/class/scsi_host/host*/scan; do echo "- - -" > ${BUS}; done
+      {% if build.version.os_iso | lower is search('ubuntu') %}
+      echo "n\np\n\n\n\nw\n" | fdisk /dev/sdb
+      {% else %}
+      echo -e "n\np\n\n\n\nw\n" | fdisk /dev/sdb
+      {% endif %}
+    executable: /bin/bash
+  register: add_disk1
+  changed_when: add_disk1.rc == 0
   become: "{{ true if ansible_user != 'root' else false }}"
-  notify: create disk1 filesystem
+  notify: Create disk1 filesystem
 
-- name: create disk1 filesystem
-  ansible.builtin.filesystem:
+- name: Create disk1 filesystem
+  community.general.filesystem:
     fstype: xfs
     device: /dev/sdb1
   become: "{{ true if ansible_user != 'root' else false }}"
-  notify: get disk1 UUID
+  notify: Get disk1 UUID
 
-- name: get disk1 UUID
-  ansible.builtin.shell: |
-    blkid | grep sdb1 | awk '{print $2}' | sed 's|"||g{% if build.version.os_iso|lower is search('ubuntu') %}; s|UUID=||{% endif %}'
+- name: Get disk1 UUID
+  ansible.builtin.shell:
+    cmd: set -o pipefail && blkid | grep sdb1 | awk '{print $2}' | sed 's|"||g{% if build.version.os_iso | lower is search('ubuntu') %}; s|UUID=||{% endif %}'
+    executable: /bin/bash
   register: reg_disk1_uuid
+  changed_when: false
   become: "{{ true if ansible_user != 'root' else false }}"
-  notify: set disk1 mount points
+  notify: Set disk1 mount points
 
-- name: set disk1 mount points
+- name: Set disk1 mount points
   ansible.posix.mount:
     name: "{{ vm.disk1_mount }}"
-    src: "{{ '/dev/disk/by-uuid/' + reg_disk1_uuid.stdout if build.version.os_iso|lower is search('ubuntu') else reg_disk1_uuid.stdout }}"
+    src: "{{ '/dev/disk/by-uuid/' + reg_disk1_uuid.stdout if build.version.os_iso | lower is search('ubuntu') else reg_disk1_uuid.stdout }}"
     fstype: xfs
     opts: defaults
     state: mounted
     dump: '1'
     passno: '2'
   become: "{{ true if ansible_user != 'root' else false }}"
-  notify: set permissions and ownership of disk1
+  notify: Set permissions and ownership of disk1
 
-- name: set permissions and ownership of disk1
+- name: Set permissions and ownership of disk1
   ansible.builtin.file:
     path: "{{ vm.disk1_mount }}"
     state: directory
-    mode: 0755
+    mode: '755'
     owner: root
     group: root
   become: "{{ true if ansible_user != 'root' else false }}"
 
-- name: expand disk2
-  ansible.builtin.shell: |
-    FSTYPE='xfs'
-    MP2=$(df -h | grep sdc1 | awk '{print $NF}')
-    umount ${MP2}
-    {{ 'sleep 2' if build.version.os_iso|lower is search('centos') else '' }}
-    [[ "${MP2}" != "{{ vm.disk2_mount }}" ]] && mv ${MP2} {{ vm.disk2_mount }}
-    for BUS in /sys/class/scsi_disk/*/device/rescan; do echo 1 > ${BUS}; done
-    parted -s /dev/sdc resizepart 1 100%
-    {{ 'sleep 2' if build.version.os_iso|lower is search('centos') else '' }}
-    disk2_uuid=$(blkid | grep sdc1 | awk '{print $2}' | sed 's|"||g; s|UUID=||')
-    sed -i "s|^\(.*${disk2_uuid}\) /[[:alnum:]]* ${FSTYPE}|\1 {{ vm.disk2_mount }} ${FSTYPE}|" /etc/fstab
-    {{ 'sleep 2' if build.version.os_iso|lower is search('centos') else '' }}
-    systemctl daemon-reload
-    mount -a
-    xfs_growfs -d {{ vm.disk2_mount }}
-  args:
+- name: Expand disk2
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      FSTYPE='xfs'
+      MP2=$(df -h | grep sdc1 | awk '{print $NF}')
+      umount ${MP2}
+      {{ 'sleep 2' if build.version.os_iso | lower is search('centos') else '' }}
+      [[ "${MP2}" != "{{ vm.disk2_mount }}" ]] && mv ${MP2} {{ vm.disk2_mount }}
+      for BUS in /sys/class/scsi_disk/*/device/rescan; do echo 1 > ${BUS}; done
+      parted -s /dev/sdc resizepart 1 100%
+      {{ 'sleep 2' if build.version.os_iso | lower is search('centos') else '' }}
+      disk2_uuid=$(blkid | grep sdc1 | awk '{print $2}' | sed 's|"||g; s|UUID=||')
+      sed -i "s|^\(.*${disk2_uuid}\) /[[:alnum:]]* ${FSTYPE}|\1 {{ vm.disk2_mount }} ${FSTYPE}|" /etc/fstab
+      {{ 'sleep 2' if build.version.os_iso | lower is search('centos') else '' }}
+      systemctl daemon-reload
+      mount -a
+      xfs_growfs -d {{ vm.disk2_mount }}
     executable: /bin/bash
+  register: expand_disk2
+  changed_when: expand_disk2.rc == 0
   become: "{{ true if ansible_user != 'root' else false }}"
 
-- name: add disk2
-  ansible.builtin.shell: |
-    for BUS in /sys/class/scsi_host/host*/scan; do echo "- - -" > ${BUS}; done
-    {% if build.version.os_iso|lower is search('ubuntu') %}
-    echo "n\np\n\n\n\nw\n" | fdisk /dev/sdc
-    {% else %}
-    echo -e "n\np\n\n\n\nw\n" | fdisk /dev/sdc
-    {% endif %}
+- name: Add disk2
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      for BUS in /sys/class/scsi_host/host*/scan; do echo "- - -" > ${BUS}; done
+      {% if build.version.os_iso | lower is search('ubuntu') %}
+      echo "n\np\n\n\n\nw\n" | fdisk /dev/sdc
+      {% else %}
+      echo -e "n\np\n\n\n\nw\n" | fdisk /dev/sdc
+      {% endif %}
+    executable: /bin/bash
+  register: add_disk2
+  changed_when: add_disk2.rc == 0
   become: "{{ true if ansible_user != 'root' else false }}"
-  notify: create disk2 filesystem
+  notify: Create disk2 filesystem
 
-- name: create disk2 filesystem
-  ansible.builtin.filesystem:
+- name: Create disk2 filesystem
+  community.general.filesystem:
     fstype: xfs
     device: /dev/sdc1
   become: "{{ true if ansible_user != 'root' else false }}"
-  notify: get disk2 UUID
+  notify: Get disk2 UUID
 
-- name: get disk2 UUID
-  ansible.builtin.shell: |
-    blkid | grep sdc1 | awk '{print $2}' | sed 's|"||g{% if build.version.os_iso|lower is search('ubuntu') %}; s|UUID=||{% endif %}'
+- name: Get disk2 UUID
+  ansible.builtin.shell:
+    cmd: set -o pipefail && blkid | grep sdc1 | awk '{print $2}' | sed 's|"||g{% if build.version.os_iso | lower is search('ubuntu') %}; s|UUID=||{% endif %}'
+    executable: /bin/bash
   register: reg_disk2_uuid
+  changed_when: false
   become: "{{ true if ansible_user != 'root' else false }}"
-  notify: set disk2 mount points
+  notify: Set disk2 mount points
 
-- name: set disk2 mount points
+- name: Set disk2 mount points
   ansible.posix.mount:
     name: "{{ vm.disk2_mount }}"
-    src: "{{ '/dev/disk/by-uuid/' + reg_disk2_uuid.stdout if build.version.os_iso|lower is search('ubuntu') else reg_disk2_uuid.stdout }}"
+    src: "{{ '/dev/disk/by-uuid/' + reg_disk2_uuid.stdout if build.version.os_iso | lower is search('ubuntu') else reg_disk2_uuid.stdout }}"
     fstype: xfs
     opts: defaults
     state: mounted
     dump: '1'
     passno: '2'
   become: "{{ true if ansible_user != 'root' else false }}"
-  notify: set permissions and ownership of disk2
+  notify: Set permissions and ownership of disk2
 
-- name: set permissions and ownership of disk2
+- name: Set permissions and ownership of disk2
   ansible.builtin.file:
     path: "{{ vm.disk2_mount }}"
     state: directory
-    mode: 0755
+    mode: '755'
     owner: root
     group: root
   become: "{{ true if ansible_user != 'root' else false }}"
 
-- name: expand disk3
-  ansible.builtin.shell: |
-    FSTYPE='xfs'
-    MP3=$(df -h | grep sdd1 | awk '{print $NF}')
-    umount ${MP3}
-    {{ 'sleep 2' if build.version.os_iso|lower is search('centos') else '' }}
-    [[ "${MP3}" != "{{ vm.disk3_mount }}" ]] && mv ${MP3} {{ vm.disk3_mount }}
-    for BUS in /sys/class/scsi_disk/*/device/rescan; do echo 1 > ${BUS}; done
-    parted -s /dev/sdd resizepart 1 100%
-    {{ 'sleep 2' if build.version.os_iso|lower is search('centos') else '' }}
-    disk3_uuid=$(blkid | grep sdd1 | awk '{print $2}' | sed 's|"||g; s|UUID=||')
-    sed -i "s|^\(.*${disk3_uuid}\) /[[:alnum:]]* ${FSTYPE}|\1 {{ vm.disk3_mount }} ${FSTYPE}|" /etc/fstab
-    {{ 'sleep 2' if build.version.os_iso|lower is search('centos') else '' }}
-    systemctl daemon-reload
-    mount -a
-    xfs_growfs -d {{ vm.disk3_mount }}
-  args:
+- name: Expand disk3
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      FSTYPE='xfs'
+      MP3=$(df -h | grep sdd1 | awk '{print $NF}')
+      umount ${MP3}
+      {{ 'sleep 2' if build.version.os_iso | lower is search('centos') else '' }}
+      [[ "${MP3}" != "{{ vm.disk3_mount }}" ]] && mv ${MP3} {{ vm.disk3_mount }}
+      for BUS in /sys/class/scsi_disk/*/device/rescan; do echo 1 > ${BUS}; done
+      parted -s /dev/sdd resizepart 1 100%
+      {{ 'sleep 2' if build.version.os_iso | lower is search('centos') else '' }}
+      disk3_uuid=$(blkid | grep sdd1 | awk '{print $2}' | sed 's|"||g; s|UUID=||')
+      sed -i "s|^\(.*${disk3_uuid}\) /[[:alnum:]]* ${FSTYPE}|\1 {{ vm.disk3_mount }} ${FSTYPE}|" /etc/fstab
+      {{ 'sleep 2' if build.version.os_iso | lower is search('centos') else '' }}
+      systemctl daemon-reload
+      mount -a
+      xfs_growfs -d {{ vm.disk3_mount }}
     executable: /bin/bash
+  register: expand_disk3
+  changed_when: expand_disk3.rc == 0
   become: "{{ true if ansible_user != 'root' else false }}"
 
-- name: add disk3
-  ansible.builtin.shell: |
-    for BUS in /sys/class/scsi_host/host*/scan; do echo "- - -" > ${BUS}; done
-    {% if build.version.os_iso|lower is search('ubuntu') %}
-    echo "n\np\n\n\n\nw\n" | fdisk /dev/sdd
-    {% else %}
-    echo -e "n\np\n\n\n\nw\n" | fdisk /dev/sdd
-    {% endif %}
+- name: Add disk3
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      for BUS in /sys/class/scsi_host/host*/scan; do echo "- - -" > ${BUS}; done
+      {% if build.version.os_iso | lower is search('ubuntu') %}
+      echo "n\np\n\n\n\nw\n" | fdisk /dev/sdd
+      {% else %}
+      echo -e "n\np\n\n\n\nw\n" | fdisk /dev/sdd
+      {% endif %}
+    executable: /bin/bash
+  register: add_disk3
+  changed_when: add_disk3.rc == 0
   become: "{{ true if ansible_user != 'root' else false }}"
-  notify: create disk3 filesystem
+  notify: Create disk3 filesystem
 
-- name: create disk3 filesystem
-  ansible.builtin.filesystem:
+- name: Create disk3 filesystem
+  community.general.filesystem:
     fstype: xfs
     device: /dev/sdd1
   become: "{{ true if ansible_user != 'root' else false }}"
-  notify: get disk3 UUID
+  notify: Get disk3 UUID
 
-- name: get disk3 UUID
-  ansible.builtin.shell: |
-    blkid | grep sdd1 | awk '{print $2}' | sed 's|"||g{% if build.version.os_iso|lower is search('ubuntu') %}; s|UUID=||{% endif %}'
+- name: Get disk3 UUID
+  ansible.builtin.shell:
+    cmd: set -o pipefail && blkid | grep sdd1 | awk '{print $2}' | sed 's|"||g{% if build.version.os_iso | lower is search('ubuntu') %}; s|UUID=||{% endif %}'
+    executable: /bin/bash
   register: reg_disk3_uuid
+  changed_when: false
   become: "{{ true if ansible_user != 'root' else false }}"
-  notify: set disk3 mount points
+  notify: Set disk3 mount points
 
-- name: set disk3 mount points
+- name: Set disk3 mount points
   ansible.posix.mount:
     name: "{{ vm.disk3_mount }}"
-    src: "{{ '/dev/disk/by-uuid/' + reg_disk3_uuid.stdout if build.version.os_iso|lower is search('ubuntu') else reg_disk3_uuid.stdout }}"
+    src: "{{ '/dev/disk/by-uuid/' + reg_disk3_uuid.stdout if build.version.os_iso | lower is search('ubuntu') else reg_disk3_uuid.stdout }}"
     fstype: xfs
     opts: defaults
     state: mounted
     dump: '1'
     passno: '2'
   become: "{{ true if ansible_user != 'root' else false }}"
-  notify: set permissions and ownership of disk3
+  notify: Set permissions and ownership of disk3
 
-- name: set permissions and ownership of disk3
+- name: Set permissions and ownership of disk3
   ansible.builtin.file:
     path: "{{ vm.disk3_mount }}"
     state: directory
-    mode: 0755
+    mode: '755'
     owner: root
     group: root
   become: "{{ true if ansible_user != 'root' else false }}"

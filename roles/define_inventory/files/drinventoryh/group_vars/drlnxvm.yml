@@ -1,8 +1,8 @@
 ---
 # Variables for standalone VMs
 credentials:
-  username: "{{ SLINUX_SUPERUSER_USER|default('') }}"
-  password: "{{ SLINUX_SUPERUSER_PASS|default('') }}"
+  username: "{{ SLINUX_SUPERUSER_USER | default('') }}"
+  password: "{{ SLINUX_SUPERUSER_PASS | default('') }}"
 
 user:
   name: "{{ drvm_vars.lnxvm.user.name if drvm_vars.lnxvm.user.name is defined else '' }}"
@@ -27,9 +27,9 @@ netconfig:
     intname: "{{ drvm_vars.lnxvm.nic1.intname }}"
     ippool: "{{ drvm_vars.lnxvm.nic1.ip_pool | default([]) }}"
     octetpool: "{{ drvm_vars.lnxvm.nic1.ip_octetpool | default([]) }}"
-    gateway: "{{ drvm_vars.lnxvm.nic1.gtw if drvm_vars.lnxvm.nic1.gtw != '' else (build.secondary.octets + '.' + drvm_vars.lnxvm.nic1.gtw_octet) if drvm_vars.lnxvm.nic1.gtw_octet != '' else '' }}"
+    gateway: "{{ drvm_vars.lnxvm.nic1.gtw if drvm_vars.lnxvm.nic1.gtw != '' else (build.secondary.octets + '.' + drvm_vars.lnxvm.nic1.gtw_octet) if drvm_vars.lnxvm.nic1.gtw_octet != '' else '' }}" # noqa: yaml[line-length]
     netmask: "{{ drvm_vars.lnxvm.nic1.netmask }}"
-    network: "{{ drvm_vars.lnxvm.nic1.netname if drvm_vars.lnxvm.nic1.netname != '' else (build.secondary.name_prefix + '-' + drvm_vars.lnxvm.nic1.netbase) if drvm_vars.lnxvm.nic1.netbase != '' else '' }}"
+    network: "{{ drvm_vars.lnxvm.nic1.netname if drvm_vars.lnxvm.nic1.netname != '' else (build.secondary.name_prefix + '-' + drvm_vars.lnxvm.nic1.netbase) if drvm_vars.lnxvm.nic1.netbase != '' else '' }}" # noqa: yaml[line-length]
     ipv6_pool: "{{ drvm_vars.lnxvm.nic1.ipv6_pool | default([]) }}"
     ipv6_gtw: "{{ drvm_vars.lnxvm.nic1.ipv6_gtw | default('') }}"
 
@@ -37,8 +37,8 @@ netconfig:
     intname: "{{ drvm_vars.lnxvm.nic2.intname }}"
     ippool: "{{ drvm_vars.lnxvm.nic2.ip_pool | default([]) }}"
     octetpool: "{{ drvm_vars.lnxvm.nic2.ip_octetpool | default([]) }}"
-    gateway: "{{ drvm_vars.lnxvm.nic2.gtw if drvm_vars.lnxvm.nic2.gtw != '' else (build.secondary.octets + '.' + drvm_vars.lnxvm.nic2.gtw_octet) if drvm_vars.lnxvm.nic2.gtw_octet != '' else '' }}"
+    gateway: "{{ drvm_vars.lnxvm.nic2.gtw if drvm_vars.lnxvm.nic2.gtw != '' else (build.secondary.octets + '.' + drvm_vars.lnxvm.nic2.gtw_octet) if drvm_vars.lnxvm.nic2.gtw_octet != '' else '' }}" # noqa: yaml[line-length]
     netmask: "{{ drvm_vars.lnxvm.nic2.netmask }}"
-    network: "{{ drvm_vars.lnxvm.nic2.netname if drvm_vars.lnxvm.nic2.netname != '' else (build.secondary.name_prefix + '-' + drvm_vars.lnxvm.nic2.netbase) if drvm_vars.lnxvm.nic2.netbase != '' else '' }}"
+    network: "{{ drvm_vars.lnxvm.nic2.netname if drvm_vars.lnxvm.nic2.netname != '' else (build.secondary.name_prefix + '-' + drvm_vars.lnxvm.nic2.netbase) if drvm_vars.lnxvm.nic2.netbase != '' else '' }}" # noqa: yaml[line-length]
     ipv6_pool: "{{ drvm_vars.lnxvm.nic2.ipv6_pool | default([]) }}"
     ipv6_gtw: "{{ drvm_vars.lnxvm.nic2.ipv6_gtw | default('') }}"

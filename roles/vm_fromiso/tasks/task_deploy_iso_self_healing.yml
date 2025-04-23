@@ -1,84 +1,91 @@
 ---
 # tasks to deploy VM from ISO
-- block:
-  - name: Get VM info
-    community.vmware.vmware_guest_info:
-      hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
-      username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
-      password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
-      datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
-      folder: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] + '/vm' + (('' if fldr_name is regex('^/') else '/') + fldr_name if fldr_name != '' else '') }}"
-      name: "{{ vm.name }}"
-      validate_certs: no
-    check_mode: no
-    ignore_errors: true
-    register: reg_vmguest_info
-
-  - name: define nic1
-    ansible.builtin.set_fact:
-      nic1:
-        - name: "{{ netconfig.nic1.network }}"
-          ip: "{{ netconfig.nic1.ipaddress }}"
-          netmask: "{{ netconfig.nic1.netmask }}"
-          gateway: "{{ netconfig.nic1.gateway }}"
-          device_type: vmxnet3
-    when:
-      - netconfig.nic1.intname != ''
-      - netconfig.nic1.ipaddress != ''
-  - name: define nic2
-    ansible.builtin.set_fact:
-      nic2:
-        - name: "{{ netconfig.nic2.network }}"
-          ip: "{{ netconfig.nic2.ipaddress }}"
-          netmask: "{{ netconfig.nic2.netmask }}"
-          gateway: "{{ netconfig.nic2.gateway }}"
-          device_type: vmxnet3
-    when:
-      - netconfig.nic2.intname != ''
-      - netconfig.nic2.ipaddress != ''
-  - name: define list of nics
-    ansible.builtin.set_fact:
-      nics_list: "{{ nic1|default([]) + nic2|default([]) }}"
-
-  - name: define ethernet0 pciSlotNumber
-    ansible.builtin.set_fact:
-      advsets:
-        - key: 'ethernet0.pciSlotNumber'
-          value: "{{ (netconfig.nic1.intname if netconfig.nic1.ipaddress != '' else netconfig.nic2.intname)|replace('ens','') }}"
-    when:
-      - netconfig.nic1.ipaddress == '' or netconfig.nic2.ipaddress == ''
-
-  - name: define list of advsets
-    ansible.builtin.set_fact:
-      advsets_list: "{{ advsets|default([]) }}"
-
-  - name: define cdrom1
-    ansible.builtin.set_fact:
-      cdrom1:
-        - type: iso
-          iso_path: "[{{ iso_datastore }}] {{ iso_path }}/{{ vm.name + '-autoinstall.iso' if build.version.os_iso|lower is search('ubuntu') else iso_installer }}"
-          controller_number: 0
-          unit_number: 0
-  - name: define cdrom2
-    ansible.builtin.set_fact:
-      cdrom2:
-        - type: iso
-          iso_path: "[{{ iso_datastore }}] {{ iso_path }}/{{ vm.name + '-kickstart.iso' }}"
-          controller_number: 1
-          unit_number: 0
-    when: build.version.os_iso|lower is not search('ubuntu')
-  - name: define list of CDROMs
-    ansible.builtin.set_fact:
-      cdrom_list: "{{ cdrom1|default([]) + cdrom2|default([]) }}"
-
-  - block:
-    - include_tasks: task_deploy_iso.yml
-    rescue:
-    - include_tasks: task_delete_vm.yml
-    - block:
-      - include_tasks: task_deploy_iso.yml
-      rescue:
-      - include_tasks: task_delete_vm.yml
-      - include_tasks: task_deploy_iso.yml
-
+- name: Deploying VM from ISO self healing
   delegate_to: localhost
+  vars:
+    mydc: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
+  block:
+    - name: Get VM info
+      community.vmware.vmware_guest_info:
+        hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
+        username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
+        password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
+        datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
+        folder: "{{ mydc + '/vm' + (('' if fldr_name is regex('^/') else '/') + fldr_name if fldr_name != '' else '') }}"
+        name: "{{ vm.name }}"
+        validate_certs: false
+      check_mode: false
+      ignore_errors: true
+      register: reg_vmguest_info
+    - name: Define nic1
+      ansible.builtin.set_fact:
+        nic1:
+          - name: "{{ netconfig.nic1.network }}"
+            ip: "{{ netconfig.nic1.ipaddress }}"
+            netmask: "{{ netconfig.nic1.netmask }}"
+            gateway: "{{ netconfig.nic1.gateway }}"
+            device_type: vmxnet3
+      when:
+        - netconfig.nic1.intname != ''
+        - netconfig.nic1.ipaddress != ''
+    - name: Define nic2
+      ansible.builtin.set_fact:
+        nic2:
+          - name: "{{ netconfig.nic2.network }}"
+            ip: "{{ netconfig.nic2.ipaddress }}"
+            netmask: "{{ netconfig.nic2.netmask }}"
+            gateway: "{{ netconfig.nic2.gateway }}"
+            device_type: vmxnet3
+      when:
+        - netconfig.nic2.intname != ''
+        - netconfig.nic2.ipaddress != ''
+    - name: Define list of nics
+      ansible.builtin.set_fact:
+        nics_list: "{{ nic1 | default([]) + nic2 | default([]) }}"
+    - name: Define ethernet0 pciSlotNumber
+      ansible.builtin.set_fact:
+        advsets:
+          - key: 'ethernet0.pciSlotNumber'
+            value: "{{ (netconfig.nic1.intname if netconfig.nic1.ipaddress != '' else netconfig.nic2.intname) | replace('ens', '') }}"
+      when:
+        - netconfig.nic1.ipaddress == '' or netconfig.nic2.ipaddress == ''
+    - name: Define list of advsets
+      ansible.builtin.set_fact:
+        advsets_list: "{{ advsets | default([]) }}"
+
+    - name: Define cdrom1
+      ansible.builtin.set_fact:
+        cdrom1:
+          - type: iso
+            iso_path: "[{{ iso_datastore }}] {{ iso_path }}/{{ vm.name + '-autoinstall.iso' if build.version.os_iso | lower is search('ubuntu') else \
+              iso_installer }}"
+            controller_number: 0
+            unit_number: 0
+    - name: Define cdrom2
+      ansible.builtin.set_fact:
+        cdrom2:
+          - type: iso
+            iso_path: "[{{ iso_datastore }}] {{ iso_path }}/{{ vm.name + '-kickstart.iso' }}"
+            controller_number: 1
+            unit_number: 0
+      when: build.version.os_iso | lower is not search('ubuntu')
+    - name: Define list of CDROMs
+      ansible.builtin.set_fact:
+        cdrom_list: "{{ cdrom1 | default([]) + cdrom2 | default([]) }}"
+
+    - name: Deploying ISO
+      block:
+        - name: Deploy ISO
+          ansible.builtin.include_tasks: task_deploy_iso.yml
+      rescue:
+        - name: Delete VM
+          ansible.builtin.include_tasks: task_delete_vm.yml
+        - name: Re-deploy ISO
+          block:
+            - name: Deploy ISO
+              ansible.builtin.include_tasks: task_deploy_iso.yml
+          rescue:
+            - name: Delete VM
+              ansible.builtin.include_tasks: task_delete_vm.yml
+            - name: Deploy ISO
+              ansible.builtin.include_tasks: task_deploy_iso.yml

@@ -1,4 +1,6 @@
 ---
 # vars file for ldap_integration
-infra_admin_user: "{{ vars[('S' if 'dr' in group_names else 'P') + 'AD_MGMT_USER'] if vars[('S' if 'dr' in group_names else 'P') + 'AD_MGMT_USER'] is defined else '' }}"
-infra_admin_pass: "{{ vars[('S' if 'dr' in group_names else 'P') + 'AD_MGMT_PASS'] if vars[('S' if 'dr' in group_names else 'P') + 'AD_MGMT_PASS'] is defined else '' }}"
+infra_admin_user: "{{ vars[('S' if 'dr' in group_names else 'P') + 'AD_MGMT_USER'] if \
+  vars[('S' if 'dr' in group_names else 'P') + 'AD_MGMT_USER'] is defined else '' }}"
+infra_admin_pass: "{{ vars[('S' if 'dr' in group_names else 'P') + 'AD_MGMT_PASS'] if \
+  vars[('S' if 'dr' in group_names else 'P') + 'AD_MGMT_PASS'] is defined else '' }}"

@@ -1,53 +1,55 @@
 ---
 # Tasks to add GTW to NIC2 interface file on the VM
-- block:
-  - name: Delete gateway from ens160 interface file
-    community.vmware.vmware_vm_shell:
-      hostname: "{{ hostvars[groups['vcenter'][0]]['information']['address'] }}"
-      username: "{{ hostvars[groups['vcenter'][0]]['credentials']['username'] }}"
-      password: "{{ hostvars[groups['vcenter'][0]]['credentials']['password'] }}"
-      datacenter: "{{ hostvars[groups['vcenter'][0]]['information']['datacenter'] }}"
-      validate_certs: false
-      vm_id: "{{ vm.name }}"
-      vm_username: "{{ ansible_user }}"
-      vm_password: "{{ ansible_ssh_pass }}"
-      vm_shell: '/bin/sh'
-      vm_shell_args: '-c "/bin/sed -i \"/^GATEWAY=.*$/,+d\" /etc/sysconfig/network-scripts/ifcfg-ens160"'
-      wait_for_process: true
-    register: intfile160
-    until: intfile160 is succeeded
-  - name: Add gateway to ens192 interface file
-    community.vmware.vmware_vm_shell:
-      hostname: "{{ hostvars[groups['vcenter'][0]]['information']['address'] }}"
-      username: "{{ hostvars[groups['vcenter'][0]]['credentials']['username'] }}"
-      password: "{{ hostvars[groups['vcenter'][0]]['credentials']['password'] }}"
-      datacenter: "{{ hostvars[groups['vcenter'][0]]['information']['datacenter'] }}"
-      validate_certs: false
-      vm_id: "{{ vm.name }}"
-      vm_username: "{{ ansible_user }}"
-      vm_password: "{{ ansible_ssh_pass }}"
-      vm_shell: '/bin/sh'
-      vm_shell_args: '-c "grep \"GATEWAY={{ netconfig.nic2.gateway }}\" /etc/sysconfig/network-scripts/ifcfg-ens192 || /bin/echo -e \"GATEWAY={{ netconfig.nic2.gateway }}\" >> /etc/sysconfig/network-scripts/ifcfg-ens192"'
-      wait_for_process: true
-    register: intfile192
-    until: intfile192 is succeeded
-  - name: restart the network
-    community.vmware.vmware_vm_shell:
-      hostname: "{{ hostvars[groups['vcenter'][0]]['information']['address'] }}"
-      username: "{{ hostvars[groups['vcenter'][0]]['credentials']['username'] }}"
-      password: "{{ hostvars[groups['vcenter'][0]]['credentials']['password'] }}"
-      datacenter: "{{ hostvars[groups['vcenter'][0]]['information']['datacenter'] }}"
-      validate_certs: false
-      vm_id: "{{ vm.name }}"
-      vm_username: "{{ ansible_user }}"
-      vm_password: "{{ ansible_ssh_pass }}"
-      vm_shell: '/bin/sh'
-      vm_shell_args: '-c "/bin/systemctl restart network"'
-      wait_for_process: true
-    register: restart_net
-    until: restart_net is succeeded
+- name: Adding NIC2 gateway
   when:
     - netconfig.nic1.gateway == ''
     - netconfig.nic1.ipaddress != ''
     - netconfig.nic2.ipaddress != ''
   delegate_to: localhost
+  block:
+    - name: Delete gateway from ens160 interface file
+      community.vmware.vmware_vm_shell:
+        hostname: "{{ hostvars[groups['vcenter'][0]]['information']['address'] }}"
+        username: "{{ hostvars[groups['vcenter'][0]]['credentials']['username'] }}"
+        password: "{{ hostvars[groups['vcenter'][0]]['credentials']['password'] }}"
+        datacenter: "{{ hostvars[groups['vcenter'][0]]['information']['datacenter'] }}"
+        validate_certs: false
+        vm_id: "{{ vm.name }}"
+        vm_username: "{{ ansible_user }}"
+        vm_password: "{{ ansible_ssh_pass }}"
+        vm_shell: '/bin/sh'
+        vm_shell_args: '-c "/bin/sed -i \"/^GATEWAY=.*$/,+d\" /etc/sysconfig/network-scripts/ifcfg-ens160"'
+        wait_for_process: true
+      register: intfile160
+      until: intfile160 is succeeded
+    - name: Add gateway to ens192 interface file
+      community.vmware.vmware_vm_shell:
+        hostname: "{{ hostvars[groups['vcenter'][0]]['information']['address'] }}"
+        username: "{{ hostvars[groups['vcenter'][0]]['credentials']['username'] }}"
+        password: "{{ hostvars[groups['vcenter'][0]]['credentials']['password'] }}"
+        datacenter: "{{ hostvars[groups['vcenter'][0]]['information']['datacenter'] }}"
+        validate_certs: false
+        vm_id: "{{ vm.name }}"
+        vm_username: "{{ ansible_user }}"
+        vm_password: "{{ ansible_ssh_pass }}"
+        vm_shell: '/bin/sh'
+        vm_shell_args: '-c "grep \"GATEWAY={{ netconfig.nic2.gateway }}\" /etc/sysconfig/network-scripts/ifcfg-ens192 || \
+          /bin/echo -e \"GATEWAY={{ netconfig.nic2.gateway }}\" >> /etc/sysconfig/network-scripts/ifcfg-ens192"'
+        wait_for_process: true
+      register: intfile192
+      until: intfile192 is succeeded
+    - name: Restart the network
+      community.vmware.vmware_vm_shell:
+        hostname: "{{ hostvars[groups['vcenter'][0]]['information']['address'] }}"
+        username: "{{ hostvars[groups['vcenter'][0]]['credentials']['username'] }}"
+        password: "{{ hostvars[groups['vcenter'][0]]['credentials']['password'] }}"
+        datacenter: "{{ hostvars[groups['vcenter'][0]]['information']['datacenter'] }}"
+        validate_certs: false
+        vm_id: "{{ vm.name }}"
+        vm_username: "{{ ansible_user }}"
+        vm_password: "{{ ansible_ssh_pass }}"
+        vm_shell: '/bin/sh'
+        vm_shell_args: '-c "/bin/systemctl restart network"'
+        wait_for_process: true
+      register: restart_net
+      until: restart_net is succeeded

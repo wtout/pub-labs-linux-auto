@@ -1,39 +1,41 @@
 ---
 # tasks file to unset quota
-- block:
-  - name: remove the job to delete files older than 7 days
-    ansible.builtin.cron:
-      name: "clean up transfer directory"
-      state: absent
-      user: root
-  - name: Disallow all users to write to {{ vm.disk1_mount }}/transfer
-    ansible.builtin.file:
-      path: "{{ vm.disk1_mount }}/transfer"
-      state: directory
-      mode: 0755
-  - name: delete the alias for the quota command
-    ansible.builtin.lineinfile:
-      regexp: '^alias myquota.*$'
-      path: "{{ '/etc/profile.d/setaliases.sh' if ansible_facts.distribution == 'Ubuntu' else '/etc/bashrc' }}"
-      state: absent
-  - name: update /etc/motd
-    ansible.builtin.copy:
-      dest: /etc/motd
-      content: ''
-      force: yes
-  - name: disable user quota in grub
-    ansible.builtin.replace:
-      path: /etc/default/grub
-      regexp: '^(GRUB_CMDLINE_LINUX=".*) rootflags=uquota"$'
-      replace: '\g<1>"'
-    notify:
-      - "{{ 'update-grub' if ansible_facts.distribution == 'Ubuntu' else 'grub2-mkconfig' }}"
-      - reboot vm
-  - name: disable user quota in /etc/fstab
-    ansible.builtin.replace:
-      path: /etc/fstab
-      regexp: '^(.*\s*/\s*xfs\s*defaults),uquota(\s*.*)$'
-      replace: '\g<1>\g<2>'
-  - name: flush handlers
-    meta: flush_handlers
+- name: Unsetting quota
   become: "{{ true if ansible_user != 'root' else false }}"
+  block:
+    - name: Remove the job to delete files older than 7 days
+      ansible.builtin.cron:
+        name: "clean up transfer directory"
+        state: absent
+        user: root
+    - name: Disallow all users to write to {{ vm.disk1_mount + '/transfer' }}
+      ansible.builtin.file:
+        path: "{{ vm.disk1_mount }}/transfer"
+        state: directory
+        mode: '755'
+    - name: Delete the alias for the quota command
+      ansible.builtin.lineinfile:
+        regexp: '^alias myquota.*$'
+        path: "{{ '/etc/profile.d/setaliases.sh' if ansible_facts.distribution == 'Ubuntu' else '/etc/bashrc' }}"
+        state: absent
+    - name: Update /etc/motd
+      ansible.builtin.copy:
+        dest: /etc/motd
+        content: ''
+        mode: '644'
+        force: true
+    - name: Disable user quota in grub
+      ansible.builtin.replace:
+        path: /etc/default/grub
+        regexp: '^(GRUB_CMDLINE_LINUX=".*) rootflags=uquota"$'
+        replace: '\g<1>"'
+      notify:
+        - "{{ 'Update-grub' if ansible_facts.distribution == 'Ubuntu' else 'Grub2-mkconfig' }}"
+        - reboot vm
+    - name: Disable user quota in /etc/fstab
+      ansible.builtin.replace:
+        path: /etc/fstab
+        regexp: '^(.*\s*/\s*xfs\s*defaults),uquota(\s*.*)$'
+        replace: '\g<1>\g<2>'
+    - name: Flush handlers
+      ansible.builtin.meta: flush_handlers
