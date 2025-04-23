@@ -1,26 +1,34 @@
 ---
 # Tasks for notify
-- block:
-  - name: delete svc acct vault file
-    ansible.builtin.file:
-      path: "{{ file_item }}"
-      state: absent
-    loop:
-      - "{{ SVCFILE | default('') }}"
-    loop_control:
-      loop_var: file_item
-    when: file_item != ''
-    check_mode: no
-    become: yes
-  - name: Get playbook status from {{ LFILE }}
-    ansible.builtin.shell: "grep 'PLAY RECAP' {{ LFILE }} >/dev/null 2>&1 && sed -n '/PLAY RECAP /,/=====/{/=====/!p;}' {{ LFILE }} | grep -E 'PLAY RECAP|(unreachable|failed)=[1-9]+' || echo 'No Play Recap found'"
-    register: playbook_status
-  - name: define execution status
-    ansible.builtin.set_fact:
-      EXEC_STATUS: "{{ EXEC_STATUS | default ([]) + [((line_item | regex_replace ('^.*[\\|] ', '')).split(' : ')|first).strip()] }}"
-    loop: "{{ playbook_status.stdout_lines | select('regex', '(unreachable=|failed=)[1-9]+') }}"
-    loop_control:
-      loop_var: line_item
-  - ansible.builtin.assert:
-      that: EXEC_STATUS|default([]) == []
-  tags: [ 'never', 'notify' ]
+- name: Main notify block
+  tags: ['never', 'notify']
+  block:
+    - name: Delete svc acct vault file
+      ansible.builtin.file:
+        path: "{{ file_item }}"
+        state: absent
+      loop:
+        - "{{ SVCFILE | default('') }}"
+      loop_control:
+        loop_var: file_item
+      when: file_item != ''
+      check_mode: false
+      become: true
+    - name: Get playbook status from {{ LFILE }}
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          grep 'PLAY RECAP' {{ LFILE }} >/dev/null 2>&1 && sed -n '/PLAY RECAP /,/=====/{/=====/!p;}' {{ LFILE }} | \
+          grep -E 'PLAY RECAP|(unreachable|failed)=[1-9]+' || echo 'No Play Recap found'
+        executable: /bin/bash
+      register: playbook_status
+      changed_when: false
+    - name: Define execution status
+      ansible.builtin.set_fact:
+        exec_status: "{{ exec_status | default([]) + [((line_item | regex_replace('^.*[\\|] ', '')).split(' : ') | first).strip()] }}"
+      loop: "{{ playbook_status.stdout_lines | select('regex', '(unreachable=|failed=)[1-9]+') }}"
+      loop_control:
+        loop_var: line_item
+    - name: Check execution status
+      ansible.builtin.assert:
+        that: exec_status | default([]) == []

@@ -1,54 +1,59 @@
 ---
 # tasks file to set quota
-- block:
-  - name: enable user quota in grub
-    ansible.builtin.replace:
-      path: /etc/default/grub
-      regexp: '^(GRUB_CMDLINE_LINUX=".*)"$'
-      replace: '\g<1> rootflags=uquota"'
-    notify:
-      - "{{ 'update-grub' if ansible_facts.distribution == 'Ubuntu' else 'grub2-mkconfig' }}"
-      - reboot vm
-  - name: enable user quota in /etc/fstab
-    ansible.builtin.replace:
-      path: /etc/fstab
-      regexp: '^(.*\s*/\s*xfs\s*defaults)(\s*.*)$'
-      replace: '\g<1>,uquota \g<2>'
-  - name: flush handlers
-    meta: flush_handlers
-  - name: set user quota on /
-    ansible.builtin.shell: xfs_quota -x -c 'limit bsoft={{ softlimit }}k bhard={{ hardlimit }}k -d' /
-    vars:
-      softlimit: "{{ (sysconfig.secondary.user_quota if 'dr' in group_names else sysconfig.primary.user_quota)|int * 1024|pow(2)|int }}"
-      hardlimit: "{{ (softlimit|int + 0.2 * 1024|pow(2))|int }}"
-  - name: create /etc/bashrc
-    ansible.builtin.file:
-      path: '/etc/profile.d/setaliases.sh'
-      state: touch
-    when: ansible_facts.distribution == 'Ubuntu'
-  - name: create an alias for the quota command
-    ansible.builtin.lineinfile:
-      line: "{{ line_item.toadd }}"
-      path: "{{ line_item.filename }}"
-    loop:
-      - {filename: "{{ '/etc/profile.d/setaliases.sh' if ansible_facts.distribution == 'Ubuntu' else '/etc/bashrc' }}", toadd: "alias myquota=\"xfs_quota -x -c 'quota -h' /\""}
-    loop_control:
-      loop_var: line_item
-  - name: update /etc/motd
-    ansible.builtin.copy:
-      dest: /etc/motd
-      content: "{{ '\n' if ansible_facts.distribution != 'Ubuntu' else '' }}======================== NOTICE TO PAE-LABS USERS =========================\n* This is a PAE Labs Team managed resource\n* Your disk quota is 1GB\n  - If you exceed your quota, you will not be able to log back in\n  - Type 'myquota' to check your quota at any time\n* Use {{ vm.disk1_mount }}/transfer directory to transfer large files. Those files will be deleted after 7 days\n* Support is provided for the OS and network connectivity\n  - via Webex https://eurl.io/#WepRyPZqB\n  - via email pae-labs@cisco.com\n===========================================================================\n\n"
-  - name: create the transfer directory under {{ vm.disk1_mount }}
-    ansible.builtin.file:
-      path: "{{ vm.disk1_mount }}/transfer"
-      state: directory
-      mode: 0777
-      owner: root
-      group: root
-  - name: create the job to delete files older than 7 days
-    ansible.builtin.cron:
-      name: "clean up transfer directory"
-      special_time: "daily"
-      job: 'CURDATE=$(date +%s) && for f in $(find {{ vm.disk1_mount }}/transfer -type f -print); do FILEDATE=$(stat -c "%W" ${f}); if [[ $((${CURDATE} - ${FILEDATE})) -ge $((7 * 24 * 3600)) ]]; then rm -f ${f}; fi; done >/dev/null'
-      user: root
+- name: Setting quota
   become: "{{ true if ansible_user != 'root' else false }}"
+  block:
+    - name: Enable user quota in grub
+      ansible.builtin.replace:
+        path: /etc/default/grub
+        regexp: '^(GRUB_CMDLINE_LINUX=".*)"$'
+        replace: '\g<1> rootflags=uquota"'
+      notify:
+        - "{{ 'Update-grub' if ansible_facts.distribution == 'Ubuntu' else 'Grub2-mkconfig' }}"
+        - Reboot vm
+    - name: Enable user quota in /etc/fstab
+      ansible.builtin.replace:
+        path: /etc/fstab
+        regexp: '^(.*\s*/\s*xfs\s*defaults)(\s*.*)$'
+        replace: '\g<1>,uquota \g<2>'
+    - name: Flush handlers
+      ansible.builtin.meta: flush_handlers
+    - name: Set user quota on /
+      ansible.builtin.command: xfs_quota -x -c 'limit bsoft={{ softlimit }}k bhard={{ hardlimit }}k -d' /
+      register: set_quota
+      changed_when: set_quota.rc == 0
+      vars:
+        softlimit: "{{ (sysconfig.secondary.user_quota if 'dr' in group_names else sysconfig.primary.user_quota) | int * 1024 | pow(2) | int }}"
+        hardlimit: "{{ (softlimit | int + 0.2 * 1024 | pow(2)) | int }}"
+    - name: Create /etc/bashrc
+      ansible.builtin.file:
+        path: '/etc/profile.d/setaliases.sh'
+        state: touch
+        mode: '644'
+      when: ansible_facts.distribution == 'Ubuntu'
+    - name: Create an alias for the quota command
+      ansible.builtin.lineinfile:
+        line: "{{ line_item.toadd }}"
+        path: "{{ line_item.filename }}"
+      loop:
+        - {filename: "{{ '/etc/profile.d/setaliases.sh' if ansible_facts.distribution == 'Ubuntu' else '/etc/bashrc' }}", toadd: "alias myquota=\"xfs_quota -x -c 'quota -h' /\""} # noqa: yaml[line-length]
+      loop_control:
+        loop_var: line_item
+    - name: Update /etc/motd
+      ansible.builtin.copy:
+        dest: /etc/motd
+        content: "{{ '\n' if ansible_facts.distribution != 'Ubuntu' else '' }}======================== NOTICE TO PAE-LABS USERS =========================\n* This is a PAE Labs Team managed resource\n* Your disk quota is 1GB\n  - If you exceed your quota, you will not be able to log back in\n  - Type 'myquota' to check your quota at any time\n* Use {{ vm.disk1_mount }}/transfer directory to transfer large files. Those files will be deleted after 7 days\n* Support is provided for the OS and network connectivity\n  - via Webex https://eurl.io/#WepRyPZqB\n  - via email pae-labs@cisco.com\n===========================================================================\n\n" # noqa: yaml[line-length]
+        mode: '644'
+    - name: Create the transfer directory under {{ vm.disk1_mount }}
+      ansible.builtin.file:
+        path: "{{ vm.disk1_mount }}/transfer"
+        state: directory
+        mode: '777'
+        owner: root
+        group: root
+    - name: Create the job to delete files older than 7 days
+      ansible.builtin.cron:
+        name: "clean up transfer directory"
+        special_time: "daily"
+        job: 'CURDATE=$(date +%s) && for f in $(find {{ vm.disk1_mount }}/transfer -type f -print); do FILEDATE=$(stat -c "%W" ${f}); if [[ $((${CURDATE} - ${FILEDATE})) -ge $((7 * 24 * 3600)) ]]; then rm -f ${f}; fi; done >/dev/null' # noqa: yaml[line-length]
+        user: root

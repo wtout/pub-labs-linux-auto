@@ -1,5 +1,6 @@
 ---
-- hosts: localhost
+- name: Test amp_connector
+  hosts: localhost
   remote_user: root
   roles:
     - amp_connector

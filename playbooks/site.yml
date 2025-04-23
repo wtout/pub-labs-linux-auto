@@ -28,30 +28,35 @@
   gather_facts: false
 
   tasks:
-    - block:
-      - ansible.builtin.include_role:
-          name: capcheck
-        when: capcheck | default(false) | bool
-        tags: ['capcheck', 'vm_creation']
-      - ansible.builtin.include_role:
-          name: infra_dns_records
-        when: add_dns_records | default(false) | bool
-        tags: [ 'infra_dns_records', 'vm_creation' ]
+    - name: Preparation
       when: deploy | default(false) | bool
+      block:
+        - name: Capcheck
+          ansible.builtin.include_role:
+            name: capcheck
+          when: capcheck | default(false) | bool
+          tags: ['capcheck', 'vm_creation']
+        - name: Infra DNS records
+          ansible.builtin.include_role:
+            name: infra_dns_records
+          when: add_dns_records | default(false) | bool
+          tags: ['infra_dns_records', 'vm_creation']
 
 # Play to create the VMs
 - name: Deploy VMs
   hosts: all
-  strategy: free
+  strategy: free # noqa: run-once[play]
   gather_facts: false
 
   tasks:
-    - block:
-      - ansible.builtin.include_role:
-          name: vm_fromiso
-        when: create_vms_iso | default(false) | bool
-        tags: vm_creation
+    - name: Deploy
       when: deploy | default(false) | bool
+      block:
+        - name: VM from ISO
+          ansible.builtin.include_role:
+            name: vm_fromiso
+          when: create_vms_iso | default(false) | bool
+          tags: vm_creation
 
 # Play to configure the VMs
 - name: Configure VMs
@@ -59,32 +64,39 @@
   gather_facts: false
 
   tasks:
-    - block:
-      - ansible.builtin.include_role:
-          name: vm_hardening
-        when: harden_vms | default(false) | bool
-        tags: vm_hardening
-      - ansible.builtin.include_role:
-          name: ldap_integration
-        when: join_domain | default(false) | bool
-        tags: [ 'never', 'ldap_integration' ]
-      - ansible.builtin.include_role:
-          name: docker
-        when: install_docker | default(false) | bool
-        tags: [ 'never', 'docker' ]
-      - ansible.builtin.include_role:
-          name: usrquota
-        when: set_quota | default(false) | bool
-        tags: [ 'never', 'usrquota' ]
-      - ansible.builtin.include_role:
-          name: amp_connector
-        when: install_connector | default(false) | bool
-        tags: [ 'never', 'amp_connector' ]
-      - ansible.builtin.include_role:
-          name: udesktop
-        when: install_desktop | default(false) | bool
-        tags: [ 'never', 'udesktop' ]
+    - name: Configure VM
       when: deploy | default(false) | bool
+      block:
+        - name: VM hardening
+          ansible.builtin.include_role:
+            name: vm_hardening
+          when: harden_vms | default(false) | bool
+          tags: vm_hardening
+        - name: LDAP integration
+          ansible.builtin.include_role:
+            name: ldap_integration
+          when: join_domain | default(false) | bool
+          tags: ['never', 'ldap_integration']
+        - name: Docker
+          ansible.builtin.include_role:
+            name: docker
+          when: install_docker | default(false) | bool
+          tags: ['never', 'docker']
+        - name: User quota
+          ansible.builtin.include_role:
+            name: usrquota
+          when: set_quota | default(false) | bool
+          tags: ['never', 'usrquota']
+        - name: AMP connector
+          ansible.builtin.include_role:
+            name: amp_connector
+          when: install_connector | default(false) | bool
+          tags: ['never', 'amp_connector']
+        - name: User desktop manager
+          ansible.builtin.include_role:
+            name: udesktop
+          when: install_desktop | default(false) | bool
+          tags: ['never', 'udesktop']
 
 # Play to delete the VMs
 - name: Rollback VMs
@@ -93,29 +105,36 @@
   gather_facts: false
 
   tasks:
-    - block:
-      - ansible.builtin.include_role:
-          name: udesktop
-        when: remove_desktop | default(false) | bool
-        tags: [ 'never', 'udesktop' ]
-      - ansible.builtin.include_role:
-          name: amp_connector
-        when: remove_connector | default(false) | bool
-        tags: [ 'never', 'amp_connector' ]
-      - ansible.builtin.include_role:
-          name: usrquota
-        when: unset_quota | default(false) | bool
-        tags: [ 'never', 'usrquota' ]
-      - ansible.builtin.include_role:
-          name: ldap_integration
-        when: leave_domain | default(false) | bool
-        tags: [ 'never', 'ldap_integration' ]
-      - ansible.builtin.include_role:
-          name: vm_fromiso
-        when: rollback_vms_iso | default(false) | bool
-        tags: vm_creation
-      - ansible.builtin.include_role:
-          name: infra_dns_records
-        when: rollback_dns_records | default(false) | bool
-        tags: [ 'infra_dns_records', 'vm_creation' ]
+    - name: Rollback
       when: rollback | default(false) | bool
+      block:
+        - name: User desktop manager
+          ansible.builtin.include_role:
+            name: udesktop
+          when: remove_desktop | default(false) | bool
+          tags: ['never', 'udesktop']
+        - name: AMP connector
+          ansible.builtin.include_role:
+            name: amp_connector
+          when: remove_connector | default(false) | bool
+          tags: ['never', 'amp_connector']
+        - name: User quota
+          ansible.builtin.include_role:
+            name: usrquota
+          when: unset_quota | default(false) | bool
+          tags: ['never', 'usrquota']
+        - name: LDAP integration
+          ansible.builtin.include_role:
+            name: ldap_integration
+          when: leave_domain | default(false) | bool
+          tags: ['never', 'ldap_integration']
+        - name: VM from ISO
+          ansible.builtin.include_role:
+            name: vm_fromiso
+          when: rollback_vms_iso | default(false) | bool
+          tags: vm_creation
+        - name: Infra DNS records
+          ansible.builtin.include_role:
+            name: infra_dns_records
+          when: rollback_dns_records | default(false) | bool
+          tags: ['infra_dns_records', 'vm_creation']

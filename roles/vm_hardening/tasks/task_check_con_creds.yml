@@ -1,59 +1,63 @@
-- name: check connection credentials
+- name: Check connection credentials
   block:
-    - name: check VM reachable
+    - name: Check VM reachable
       ansible.builtin.command: ping {{ ansible_host }} -c 1
       register: vh_vm_reachable
-      check_mode: no
-      become: "{{ 'yes' if host_os|lower is search('almalinux|ubuntu') else 'no' }}"
+      changed_when: false
+      check_mode: false
+      become: "{{ true if host_os | lower is search('almalinux|ubuntu') else false }}"
       delegate_to: localhost
-    - name: check original credentials
+    - name: Check original credentials
       block:
-        - name: check VM credentials
+        - name: Check VM credentials
           ansible.builtin.wait_for_connection:
             timeout: 10
           register: vh_vm_creds
-          check_mode: no
+          check_mode: false
       rescue:
-        - block:
-          - ansible.builtin.debug:
-              msg: "VM hardening is enabled. Nothing to do"
-          - name: set flag to not harden the VM
-            ansible.builtin.set_fact:
-              hardv: false
+        - name: Checking credentials
           when: vh_vm_creds.msg is search('This System is for the use of authorized users only')
-        - name: switch to {{ vm_admin_user }} user
+          block:
+            - name: Information message
+              ansible.builtin.debug:
+                msg: "VM hardening is enabled. Nothing to do"
+            - name: Set flag to not harden the VM
+              ansible.builtin.set_fact:
+                hardv: false
+        - name: Switch to {{ vm_admin_user + ' user' }}
           ansible.builtin.set_fact:
             ansible_user: "{{ vm_admin_user }}"
             ansible_ssh_pass: "{{ vm_admin_pass }}"
             ansible_become_pass: "{{ vm_admin_pass }}"
           no_log: true
-        - name: check {{ vm_admin_user }} credentials
+        - name: Check {{ vm_admin_user + ' credentials' }}
           ansible.builtin.wait_for_connection:
             timeout: 10
   rescue:
-    - name: check service user credentials
+    - name: Check service user credentials
       block:
-        - name: switch to {{ vm_admin_user }} user
+        - name: Switch to {{ vm_admin_user + ' user' }}
           ansible.builtin.set_fact:
             ansible_user: "{{ vm_admin_user }}"
             ansible_ssh_pass: "{{ vm_admin_pass }}"
             ansible_become_pass: "{{ vm_admin_pass }}"
           no_log: true
-        - name: check connection
+        - name: Check connection
           ansible.builtin.wait_for:
             port: 22
             host: "{{ netconfig.nic1.ipaddress }}"
             search_regex: OpenSSH
             timeout: 10
           register: vh_vm_connection
-          check_mode: no
+          check_mode: false
           delegate_to: localhost
-        - ansible.builtin.debug:
+        - name: Information message
+          ansible.builtin.debug:
             msg: "VM hardening is enabled. Nothing to do"
-        - name: set flag to not harden the VM
+        - name: Set flag to not harden the VM
           ansible.builtin.set_fact:
             hardv: false
       rescue:
-        - name: abort hardening
+        - name: Abort hardening
           ansible.builtin.fail:
             msg: 'Unable to connect to the VM. Check the connection details or that the VM is created. Aborting!'

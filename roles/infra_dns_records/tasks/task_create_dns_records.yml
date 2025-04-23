@@ -1,45 +1,51 @@
 ---
 # Task file to add DNS records
-- block:
-  - include_tasks:
-      file: task_create_forward_record.yml
-      apply:
-        vars:
-          mydesignation: 'primary'
-          myserver: "{{ sysconfig.primary.dns_servers[0] }}"
-          mydomain: "{{ sysconfig.primary.domain_name }}"
-          myrecord: "{{ vm.name }}"
-          myipaddress: "{{ netconfig.nic1.ipaddress if vm.name is not search('csr') else netconfig.nic3.ipaddress }}"
-  - include_tasks:
-      file: task_create_reverse_record.yml
-      apply:
-        vars:
-          mydesignation: 'primary'
-          myserver: "{{ sysconfig.primary.dns_servers[0] }}"
-          mydomain: "{{ sysconfig.primary.domain_name }}"
-          myrecord: "{{ vm.name }}"
-          myipaddress: "{{ netconfig.nic1.ipaddress if vm.name is not search('csr') else netconfig.nic3.ipaddress }}"
+- name: Add primary site DNS records
   when:
     - "'stack' in group_names"
-- block:
-  - include_tasks:
-      file: task_create_forward_record.yml
-      apply:
-        vars:
-          mydesignation: 'secondary'
-          myserver: "{{ sysconfig.secondary.dns_servers[0] }}"
-          mydomain: "{{ sysconfig.secondary.domain_name }}"
-          myrecord: "{{ vm.name }}"
-          myipaddress: "{{ netconfig.nic1.ipaddress if vm.name is not search('csr') else netconfig.nic3.ipaddress }}"
-  - include_tasks:
-      file: task_create_reverse_record.yml
-      apply:
-        vars:
-          mydesignation: 'secondary'
-          myserver: "{{ sysconfig.secondary.dns_servers[0] }}"
-          mydomain: "{{ sysconfig.secondary.domain_name }}"
-          myrecord: "{{ vm.name }}"
-          myipaddress: "{{ netconfig.nic1.ipaddress if vm.name is not search('csr') else netconfig.nic3.ipaddress }}"
+  block:
+    - name: Create forward record
+      ansible.builtin.include_tasks:
+        file: task_create_forward_record.yml
+        apply:
+          vars:
+            mydesignation: 'primary'
+            myserver: "{{ sysconfig.primary.dns_servers[0] }}"
+            mydomain: "{{ sysconfig.primary.domain_name }}"
+            myrecord: "{{ vm.name }}"
+            myipaddress: "{{ netconfig.nic1.ipaddress if vm.name is not search('csr') else netconfig.nic3.ipaddress }}"
+    - name: Create reverse record
+      ansible.builtin.include_tasks:
+        file: task_create_reverse_record.yml
+        apply:
+          vars:
+            mydesignation: 'primary'
+            myserver: "{{ sysconfig.primary.dns_servers[0] }}"
+            mydomain: "{{ sysconfig.primary.domain_name }}"
+            myrecord: "{{ vm.name }}"
+            myipaddress: "{{ netconfig.nic1.ipaddress if vm.name is not search('csr') else netconfig.nic3.ipaddress }}"
+- name: Add secondary site DNS records
   when:
     - build.disaster_recovery
     - "'dr' in group_names"
+  block:
+    - name: Create forward record
+      ansible.builtin.include_tasks:
+        file: task_create_forward_record.yml
+        apply:
+          vars:
+            mydesignation: 'secondary'
+            myserver: "{{ sysconfig.secondary.dns_servers[0] }}"
+            mydomain: "{{ sysconfig.secondary.domain_name }}"
+            myrecord: "{{ vm.name }}"
+            myipaddress: "{{ netconfig.nic1.ipaddress if vm.name is not search('csr') else netconfig.nic3.ipaddress }}"
+    - name: Create reverse record
+      ansible.builtin.include_tasks:
+        file: task_create_reverse_record.yml
+        apply:
+          vars:
+            mydesignation: 'secondary'
+            myserver: "{{ sysconfig.secondary.dns_servers[0] }}"
+            mydomain: "{{ sysconfig.secondary.domain_name }}"
+            myrecord: "{{ vm.name }}"
+            myipaddress: "{{ netconfig.nic1.ipaddress if vm.name is not search('csr') else netconfig.nic3.ipaddress }}"
