@@ -1,26 +1,29 @@
 ---
 # tasks file to prevent domain users from running sudo commands
-- block:
-  - name: check if domain users are allowed to do sudo
-    ansible.builtin.lineinfile:
-      path: /etc/sudoers
-      regexp: '^%domain\\ users.*ALL$'
-      state: absent
-    check_mode: yes
-    register: reg_ds_check
-    failed_when: reg_ds_check is failed or reg_ds_check is changed
-  rescue:
-  - name: disallow domain users to do sudo
-    ansible.builtin.lineinfile:
-      path: /etc/sudoers
-      regexp: '{{ line_item }}'
-      state: absent
-      validate: /usr/sbin/visudo -cf %s
-    loop:
-      - '^## Allows members of the "domain users" group to.*$'
-      - '^%domain\\ users.*ALL$\n'
-    loop_control:
-      loop_var: line_item
-  - name: delete consecutive blank lines
-    ansible.builtin.shell: sed -i 'N; /^\n$/d; P; D' /etc/sudoers
+- name: Disabling user sudo ability
   become: "{{ true if ansible_user != 'root' else false }}"
+  block:
+    - name: Check if domain users are allowed to do sudo
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers
+        regexp: '^%domain\\ users.*ALL$'
+        state: absent
+      check_mode: true
+      register: reg_ds_check
+      failed_when: reg_ds_check is failed or reg_ds_check is changed
+  rescue:
+    - name: Disallow domain users to do sudo
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers
+        regexp: '{{ line_item }}'
+        state: absent
+        validate: /usr/sbin/visudo -cf %s
+      loop:
+        - '^## Allows members of the "domain users" group to.*$'
+        - '^%domain\\ users.*ALL$\n'
+      loop_control:
+        loop_var: line_item
+    - name: Delete consecutive blank lines
+      ansible.builtin.shell: sed -i 'N; /^\n$/d; P; D' /etc/sudoers # noqa: command-instead-of-module
+      register: delete_blank
+      changed_when: delete_blank.rc == 0
