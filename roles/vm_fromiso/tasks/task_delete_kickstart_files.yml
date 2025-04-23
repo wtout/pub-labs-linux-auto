@@ -1,78 +1,93 @@
 ---
 # Tasks to delete the kickstart files from vsphere and locally
-- block:
-  - block:
-    - name: check existing VM reachable
-      ansible.builtin.command: ping {{ ansible_host }} -c 1
-      register: vcr_vm_reachable2
-      ignore_errors: true
-      check_mode: no
-      until: vcr_vm_reachable2 is succeeded
-      retries: 6
-      delay: 10
-      when: "vcr_vm_reachable|default({'failed': true}) is skipped or vcr_vm_reachable|default({'failed': true}) is succeeded"
-    - block:
-      - name: check created VM reachable
-        ansible.builtin.command: ping {{ netconfig.nic1.ipaddress if netconfig.nic1.gateway != '' else netconfig.nic2.ipaddress }} -c 1
-        register: vcr_vm_reachable2
-        become: yes
-        ignore_errors: true
-        check_mode: no
-        until: vcr_vm_reachable2 is succeeded
-        retries: 6
-        delay: 10
-        when: build.version.os_iso|lower is not search('ubuntu')
-      - block:
-        - name: check created VM reachable
-          ansible.builtin.shell: |
-            sshpass -p {{ ansible_ssh_pass }} ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -T -l {{ ansible_user }} {{ netconfig.nic1.ipaddress if netconfig.nic1.ipaddress != '' else netconfig.nic2.ipaddress }} <<EOF
-            whoami
-            EOF
-          register: reg_vm_reachable
-          until: reg_vm_reachable is succeeded
-          retries: 9
-          delay: 10
-          no_log: yes
-        rescue:
-        - ansible.builtin.debug:
-            msg: "{{ reg_vm_reachable|replace(ansible_ssh_pass,'obfuscated') if ansible_ssh_pass != '' else reg_vm_reachable }}"
-        always:
-        - ansible.builtin.assert:
-            that: reg_vm_reachable is succeeded
-        when:
-          - build.version.os_iso|lower is search('ubuntu')
-      when: "vcr_vm_reachable|default({'failed': true}) is skipped or vcr_vm_reachable|default({'failed': true}) is failed"
-    when: not ansible_check_mode
-    become: "{{ 'yes' if host_os|lower is search('almalinux|ubuntu') else 'no' }}"
-
-  - name: delete {{ 'autoinstall' if build.version.os_iso|lower is search('ubuntu') else 'kickstart' }} ISO file from vsphere
-    community.vmware.vsphere_file:
-      hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
-      username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
-      password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
-      datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
-      datastore: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['storage_datastore'] if hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['storage_datastore'] != '' else vm_ds }}"
-      path: "{{ 'ISO/' + hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['storage_path'] if hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['storage_path'] != '' else 'ISO' }}/{{ vm.name }}-{{ 'autoinstall' if build.version.os_iso|lower is search('ubuntu') else 'kickstart' }}.iso"
-      state: absent
-      validate_certs: false
-    environment:
-      http_proxy: ''
-      https_proxy: ''
-    async: 30
-    poll: 0
-    ignore_errors: true
-    when: not ansible_check_mode
-  - name: delete {{ 'autoinstall' if build.version.os_iso|lower is search('ubuntu') else 'kickstart' }} files locally
-    ansible.builtin.file:
-      path: "{{ role_path }}/files/{{ file_item }}"
-      state: absent
-    loop:
-      - "{{ vm.name + '-tmpdir' if build.version.os_iso|lower is search('ubuntu') else '' }}"
-      - "{{ vm.name + '-kickstart.iso' if build.version.os_iso|lower is not search('ubuntu') else '' }}"
-      - "{{ vm.name + '-kickstart.cfg' if build.version.os_iso|lower is not search('ubuntu') else '' }}"
-    loop_control:
-      loop_var: file_item
-    when: file_item != ''
+- name: Delete kickstart files
   delegate_to: localhost
   when:
-    - "vcr_vm_reachable|default({'failed': true}) is skipped or vcr_vm_reachable|default({'failed': true}) is failed or not crecon|default(true)"
+    - "vcr_vm_reachable | default({'failed': true}) is skipped or vcr_vm_reachable | default({'failed': true}) is failed or not crecon | default(true)"
+  block:
+    - name: Check VM reachable
+      when: not ansible_check_mode
+      become: "{{ true if host_os | lower is search('almalinux|ubuntu') else false }}"
+      block:
+        - name: Check existing VM reachable
+          ansible.builtin.command: ping {{ ansible_host }} -c 1
+          register: vcr_vm_reachable2
+          changed_when: false
+          ignore_errors: true
+          check_mode: false
+          until: vcr_vm_reachable2 is succeeded
+          retries: 6
+          delay: 10
+          when: "vcr_vm_reachable | default({'failed': true}) is skipped or vcr_vm_reachable | default({'failed': true}) is succeeded"
+        - name: Check created VM reachable
+          when: "vcr_vm_reachable | default({'failed': true}) is skipped or vcr_vm_reachable | default({'failed': true}) is failed"
+          block:
+            - name: Check created non-Ubuntu VM reachable
+              ansible.builtin.command: ping {{ netconfig.nic1.ipaddress if netconfig.nic1.gateway != '' else netconfig.nic2.ipaddress }} -c 1
+              register: vcr_vm_reachable2
+              changed_when: false
+              become: true
+              ignore_errors: true
+              check_mode: false
+              until: vcr_vm_reachable2 is succeeded
+              retries: 6
+              delay: 10
+              when: build.version.os_iso | lower is not search('ubuntu')
+            - name: Check created Ubuntu VM reachable
+              when: build.version.os_iso | lower is search('ubuntu')
+              block:
+                - name: Check created VM reachable
+                  ansible.builtin.shell: |
+                    sshpass -p {{ ansible_ssh_pass }} ssh {{ sshopt }} -T -l {{ ansible_user }} {{ myaddr }} <<EOF
+                    whoami
+                    EOF
+                  register: reg_vm_reachable
+                  changed_when: false
+                  until: reg_vm_reachable is succeeded
+                  retries: 9
+                  delay: 10
+                  no_log: true
+                  vars:
+                    myaddr: "{{ netconfig.nic1.ipaddress if netconfig.nic1.ipaddress != '' else netconfig.nic2.ipaddress }}"
+                    sshopt: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+              rescue:
+                - name: Debug message
+                  ansible.builtin.debug:
+                    msg: "{{ reg_vm_reachable | replace(ansible_ssh_pass, 'obfuscated') if ansible_ssh_pass != '' else reg_vm_reachable }}"
+              always:
+                - name: Assert VM is reachable
+                  ansible.builtin.assert:
+                    that: reg_vm_reachable is succeeded
+
+    - name: Delete {{ mystring + ' ISO file from vsphere' }} # noqa: ignore-errors
+      community.vmware.vsphere_file:
+        hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
+        username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
+        password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
+        datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
+        datastore: "{{ mystorage_ds if mystorage_ds != '' else vm_ds }}"
+        path: "{{ 'ISO/' + mystorage_path if mystorage_path != '' else 'ISO' }}/{{ vm.name }}-{{ mystring }}.iso"
+        state: absent
+        validate_certs: false
+      environment:
+        http_proxy: ''
+        https_proxy: ''
+      async: 30
+      poll: 0
+      ignore_errors: true
+      when: not ansible_check_mode
+      vars:
+        mystorage_ds: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['storage_datastore'] }}"
+        mystorage_path: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['storage_path'] }}"
+        mystring: "{{ 'autoinstall' if build.version.os_iso | lower is search('ubuntu') else 'kickstart' }}"
+    - name: Delete {{ ('autoinstall' if build.version.os_iso | lower is search('ubuntu') else 'kickstart') + ' files locally' }}
+      ansible.builtin.file:
+        path: "{{ role_path }}/files/{{ file_item }}"
+        state: absent
+      loop:
+        - "{{ vm.name + '-tmpdir' if build.version.os_iso | lower is search('ubuntu') else '' }}"
+        - "{{ vm.name + '-kickstart.iso' if build.version.os_iso | lower is not search('ubuntu') else '' }}"
+        - "{{ vm.name + '-kickstart.cfg' if build.version.os_iso | lower is not search('ubuntu') else '' }}"
+      loop_control:
+        loop_var: file_item
+      when: file_item != ''

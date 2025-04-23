@@ -1,16 +1,20 @@
 ---
 # handlers file for usrquota
-- name: update-grub
-  ansible.builtin.shell:
+- name: Update-grub
+  ansible.builtin.command:
     update-grub
+  register: update_grub
+  changed_when: update_grub.rc == 0
   become: "{{ true if ansible_user != 'root' else false }}"
 
-- name: grub2-mkconfig
-  ansible.builtin.shell:
+- name: Grub2-mkconfig
+  ansible.builtin.command:
     grub2-mkconfig -o /boot/grub2/grub.cfg
+  register: grub_mkconfig
+  changed_when: grub_mkconfig.rc == 0
   become: "{{ true if ansible_user != 'root' else false }}"
 
-- name: reboot vm
+- name: Reboot vm
   ansible.builtin.reboot:
     post_reboot_delay: 10
     reboot_timeout: 60

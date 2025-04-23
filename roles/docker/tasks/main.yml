@@ -1,65 +1,70 @@
 ---
 # tasks file for roles/docker
-- block:
-  - block:
-    - name: check if VM exists
-      community.vmware.vmware_guest_info:
-        hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
-        username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
-        password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
-        datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
-        name: "{{ vm.name }}"
-        schema: vsphere
-        validate_certs: no
-      no_log: yes
-      delegate_to: localhost
-    rescue:
-    - name: define creds_status
-      ansible.builtin.set_fact:
-        creds_status: 'The VM does not exist'
-  - name: check original credentials
-    block:
-      - name: check VM credentials
-        ansible.builtin.wait_for_connection:
-          timeout: 3
-        register: dcr_vm_creds
-        check_mode: no
-    rescue:
-      - name: define creds_status
-        ansible.builtin.set_fact:
-          creds_status: 'The VM IP address is invalid'
-        when:
-          - dcr_vm_creds.msg is defined
-          - dcr_vm_creds.msg is search('Failed to connect to the host via ssh|Data could not be sent to remote host')
-      - block:
-        - name: check service account credentials
-          block:
-            - name: Switch to {{ vm_admin_user }} user
-              ansible.builtin.set_fact:
-                ansible_user: "{{ vm_admin_user }}"
-                ansible_ssh_pass: "{{ vm_admin_pass }}"
-                ansible_become_pass: "{{ vm_admin_pass }}"
-              no_log: true
-            - name: check updated VM credentials
-              ansible.builtin.wait_for_connection:
-                timeout: 3
-              check_mode: no
-          rescue:
-            - name: define creds_status
-              ansible.builtin.set_fact:
-                creds_status: 'The VM credentials are invalid'
-        when:
-          - dcr_vm_creds.msg is defined
-          - dcr_vm_creds.msg is search('Invalid/incorrect')
-    when:
-      - creds_status|default('') == ''
-  - ansible.builtin.assert:
-      that:
-        - creds_status|default('') is not search('invalid')
-        - creds_status|default('') is not search('does not exist')
-      fail_msg: "{{ creds_status|default('') }}"
-  - include_tasks: task_install_docker.yml
-  - include_tasks: task_enable_nopasswd_sudo.yml
+- name: Main docker block
   when: install_docker | default(false) | bool
-  tags: [ 'never', 'docker' ]
-  
+  tags: ['never', 'docker']
+  block:
+    - name: Checking if VM exists
+      block:
+        - name: Check if VM exists
+          community.vmware.vmware_guest_info:
+            hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
+            username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
+            password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
+            datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
+            name: "{{ vm.name }}"
+            schema: vsphere
+            validate_certs: false
+          no_log: true
+          delegate_to: localhost
+      rescue:
+        - name: Define creds_status
+          ansible.builtin.set_fact:
+            creds_status: 'The VM does not exist'
+    - name: Check original credentials
+      when:
+        - creds_status | default('') == ''
+      block:
+        - name: Check VM credentials
+          ansible.builtin.wait_for_connection:
+            timeout: 3
+          register: dcr_vm_creds
+          check_mode: false
+      rescue:
+        - name: Define creds_status
+          ansible.builtin.set_fact:
+            creds_status: 'The VM IP address is invalid'
+          when:
+            - dcr_vm_creds.msg is defined
+            - dcr_vm_creds.msg is search('Failed to connect to the host via ssh|Data could not be sent to remote host')
+        - name: Checking service account credentials
+          when:
+            - dcr_vm_creds.msg is defined
+            - dcr_vm_creds.msg is search('Invalid/incorrect')
+          block:
+            - name: Check service account credentials
+              block:
+                - name: Switch to {{ vm_admin_user + ' user' }}
+                  ansible.builtin.set_fact:
+                    ansible_user: "{{ vm_admin_user }}"
+                    ansible_ssh_pass: "{{ vm_admin_pass }}"
+                    ansible_become_pass: "{{ vm_admin_pass }}"
+                  no_log: true
+                - name: Check updated VM credentials
+                  ansible.builtin.wait_for_connection:
+                    timeout: 3
+                  check_mode: false
+              rescue:
+                - name: Define creds_status
+                  ansible.builtin.set_fact:
+                    creds_status: 'The VM credentials are invalid'
+    - name: Assert that credentials are valid
+      ansible.builtin.assert:
+        that:
+          - creds_status | default('') is not search('invalid')
+          - creds_status | default('') is not search('does not exist')
+        fail_msg: "{{ creds_status | default('') }}"
+    - name: Install docker
+      ansible.builtin.include_tasks: task_install_docker.yml
+    - name: Enable no-password sudo
+      ansible.builtin.include_tasks: task_enable_nopasswd_sudo.yml

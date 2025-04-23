@@ -1,65 +1,69 @@
 ---
 # Tasks to configure the default route on the VM
-- block:
-  - name: Wait on VMware Tools to become available
-    community.vmware.vmware_guest_tools_wait:
-      hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
-      username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
-      password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
-      folder: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] + '/vm' + (('' if fldr_name is regex('^/') else '/') + fldr_name if fldr_name != '' else '') }}"
-      validate_certs: false
-      name: "{{ vm.name }}"
-  - name: render default route file locally
-    ansible.builtin.template:
-      src: "templates/{{ 'dr' if 'dr' in group_names else '' }}route-ens160.tmpl"
-      dest: "/var/tmp/{{ build.secondary.name_prefix if 'dr' in group_names else build.primary.name_prefix }}-{{ inventory_hostname }}-route-ens160"
-  - name: copy default route file to VM
-    community.vmware.vmware_guest_file_operation:
-      hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
-      username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
-      password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
-      datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter']}}"
-      folder: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] + '/vm' + (('' if fldr_name is regex('^/') else '/') + fldr_name if fldr_name != '' else '') }}"
-      validate_certs: false
-      vm_id: "{{ vm.name}}"
-      vm_username: "{{ ansible_user }}"
-      vm_password: "{{ ansible_ssh_pass }}"
-      ansible.builtin.copy:
-          src: "/var/tmp/{{ build.secondary.name_prefix if 'dr' in group_names else build.primary.name_prefix }}-{{ inventory_hostname }}-route-ens160"
-          dest: "/etc/sysconfig/network-scripts/route-ens160"
-          overwrite: false
-    register: copy_file
-    until: copy_file is succeeded
-    retries: 3
-    environment:
-      http_proxy: ''
-      https_proxy: ''
-  - name: restart the network on the VM
-    community.vmware.vmware_vm_shell:
-      hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
-      username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
-      password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
-      datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
-      folder: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] + '/vm' + (('' if fldr_name is regex('^/') else '/') + fldr_name if fldr_name != '' else '') }}"
-      validate_certs: false
-      vm_id: "{{ vm.name }}"
-      vm_username: "{{ ansible_user }}"
-      vm_password: "{{ ansible_ssh_pass }}"
-      vm_shell: '/bin/systemctl'
-      vm_shell_args: 'restart network'
-      wait_for_process: true
-    when: copy_file is changed
-  - name: delete default route file locally
-    ansible.builtin.file:
-      path: "/var/tmp/{{ build.secondary.name_prefix if 'dr' in group_names else build.primary.name_prefix }}-{{ inventory_hostname }}-route-ens160"
-      state: absent
+- name: Configure default route
   when:
     - netconfig.nic1.gateway == ''
     - netconfig.nic1.ipaddress != ''
     - netconfig.nic2.ipaddress != ''
   delegate_to: localhost
+  vars:
+    mydc: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
+  block:
+    - name: Wait on VMware Tools to become available
+      community.vmware.vmware_guest_tools_wait:
+        hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
+        username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
+        password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
+        folder: "{{ mydc + '/vm' + (('' if fldr_name is regex('^/') else '/') + fldr_name if fldr_name != '' else '') }}"
+        validate_certs: false
+        name: "{{ vm.name }}"
+    - name: Render default route file locally
+      ansible.builtin.template:
+        src: "templates/{{ 'dr' if 'dr' in group_names else '' }}route-ens160.tmpl"
+        dest: "/var/tmp/{{ build.secondary.name_prefix if 'dr' in group_names else build.primary.name_prefix }}-{{ inventory_hostname }}-route-ens160"
+        mode: '644'
+    - name: Copy default route file to VM
+      community.vmware.vmware_guest_file_operation:
+        hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
+        username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
+        password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
+        datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
+        folder: "{{ mydc + '/vm' + (('' if fldr_name is regex('^/') else '/') + fldr_name if fldr_name != '' else '') }}"
+        validate_certs: false
+        vm_id: "{{ vm.name }}"
+        vm_username: "{{ ansible_user }}"
+        vm_password: "{{ ansible_ssh_pass }}"
+        copy:
+          src: "/var/tmp/{{ build.secondary.name_prefix if 'dr' in group_names else build.primary.name_prefix }}-{{ inventory_hostname }}-route-ens160"
+          dest: "/etc/sysconfig/network-scripts/route-ens160"
+          overwrite: false
+      register: copy_file
+      until: copy_file is succeeded
+      retries: 3
+      environment:
+        http_proxy: ''
+        https_proxy: ''
+    - name: Restart the network on the VM
+      community.vmware.vmware_vm_shell:
+        hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
+        username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
+        password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
+        datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
+        folder: "{{ mydc + '/vm' + (('' if fldr_name is regex('^/') else '/') + fldr_name if fldr_name != '' else '') }}"
+        validate_certs: false
+        vm_id: "{{ vm.name }}"
+        vm_username: "{{ ansible_user }}"
+        vm_password: "{{ ansible_ssh_pass }}"
+        vm_shell: '/bin/systemctl'
+        vm_shell_args: 'restart network'
+        wait_for_process: true
+      when: copy_file is changed # noqa: no-handler
+    - name: Delete default route file locally
+      ansible.builtin.file:
+        path: "/var/tmp/{{ build.secondary.name_prefix if 'dr' in group_names else build.primary.name_prefix }}-{{ inventory_hostname }}-route-ens160"
+        state: absent
 
-- name: wait 600 seconds for VM to become reachable
+- name: Wait 600 seconds for VM to become reachable
   ansible.builtin.wait_for_connection:
     timeout: 600
   when:

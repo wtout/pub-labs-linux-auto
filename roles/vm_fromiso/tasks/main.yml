@@ -1,13 +1,23 @@
 ---
 # tasks file for vm_fromiso
-- block:
-  - include_tasks: task_delete_ssh_key.yml
-  - include_tasks: task_define_folder_name.yml
-  - block:
-    - include_tasks: task_check_con_creds.yml
-    - include_tasks: task_create_vms.yml
-    when: create_vms_iso | default(false) | bool
-
-  - include_tasks: task_rollback_vms.yml
-    when: rollback_vms_iso | default(false) | bool
+- name: Main vm_fromiso block
   tags: vm_creation
+  block:
+    - name: Delete SSH key
+      ansible.builtin.include_tasks: task_delete_ssh_key.yml
+    - name: Define folder name
+      ansible.builtin.include_tasks: task_define_folder_name.yml
+    - name: Creating VMs
+      when: create_vms_iso | default(false) | bool
+      block:
+        - name: Check connection credentials
+          ansible.builtin.include_tasks: task_check_con_creds.yml
+        - name: Create VMs
+          ansible.builtin.include_tasks: task_create_vms.yml
+    - name: Rolling back VMs
+      when: rollback_vms_iso | default(false) | bool
+      block:
+        - name: Check connection credentials
+          ansible.builtin.include_tasks: task_check_con_creds.yml
+        - name: Rollback VMs
+          ansible.builtin.include_tasks: task_rollback_vms.yml

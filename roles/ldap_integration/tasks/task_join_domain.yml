@@ -1,164 +1,187 @@
 ---
 # Tasks to join the AD domain
-- block:
-  - block:
-    - name: join the {{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }} domain
-      ansible.builtin.shell: echo '{{ infra_admin_pass }}' | realm join -v -U {{ infra_admin_user }} {{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }}
-      register: reg_join_domain
-      no_log: yes
-      failed_when:
-        - reg_join_domain.rc == 1
-        - reg_join_domain.stderr is not search('Already joined to this domain')
-    rescue:
-    - block:
-      - name: run command to correct dpkg problem
-        ansible.builtin.shell: dpkg --configure -a
-        register: reg_dpkg
-      - name: join the {{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }} domain
-        ansible.builtin.shell: echo '{{ infra_admin_pass }}' | realm join -v -U {{ infra_admin_user }} {{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }}
-        register: reg_join_domain
-        no_log: yes
-        failed_when:
-          - reg_join_domain.rc == 1
-          - reg_join_domain.stderr is not search('Already joined to this domain')
+- name: Join the AD domain
+  become: "{{ true if ansible_user != 'root' else false }}"
+  vars:
+    mydomain: "{{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }}"
+  block:
+    - name: Joining the domain
+      block:
+        - name: Join the {{ mydomain + ' domain' }}
+          ansible.builtin.shell:
+            cmd: set -o pipefail && echo '{{ infra_admin_pass }}' | realm join -v -U {{ infra_admin_user }} {{ mydomain }}
+            executable: /bin/bash
+          register: reg_join_domain
+          changed_when: reg_join_domain.rc == 0
+          no_log: true
+          failed_when:
+            - reg_join_domain.rc == 1
+            - reg_join_domain.stderr is not search('Already joined to this domain')
       rescue:
-      - ansible.builtin.debug:
-          msg:
-            - 'Joining the domain failed'
-            - ''
-            - "{{ reg_join_domain|replace(infra_admin_pass,'obfuscated') }}"
-      when: reg_join_domain.stderr is search("you must manually run 'dpkg --configure -a' to correct the problem")
-    - ansible.builtin.debug:
-        msg:
-          - 'Joining the domain failed'
-          - ''
-          - "{{ reg_join_domain|replace(infra_admin_pass,'obfuscated') }}"
-      when: reg_join_domain.stderr is not search("you must manually run 'dpkg --configure -a' to correct the problem")
-    always:
-    - ansible.builtin.assert:
-        that:
-          - reg_join_domain is succeeded
-  - name: change setings in /etc/sssd/sssd.conf
-    ansible.builtin.replace:
-      path: '/etc/sssd/sssd.conf'
-      regexp: '^({{ line_item.param }} =).*$'
-      replace: '\g<1> {{ line_item.value }}'
-    loop:
-      - { param: 'fallback_homedir', value: '/home/%u' }
-      - { param: 'use_fully_qualified_names', value: 'False' }
-    loop_control:
-      loop_var: line_item
-    notify: restart sssd
-  - name: get the Linux distribution
-    ansible.builtin.setup:
-      filter:
-        - 'distribution*'
-  - block:
-    - name: check if domain admins are allowed to do sudo
-      ansible.builtin.lineinfile:
-        path: /etc/sudoers
-        line: '%domain\ admins        ALL=(ALL)       ALL'
-      check_mode: yes
-      register: reg_ds_check
-      failed_when: reg_ds_check is failed or reg_ds_check is changed
-    rescue:
-    - name: allow domain admins to do sudo
+        - name: Fix dpkg problem and re-join domain
+          when: reg_join_domain.stderr is search("you must manually run 'dpkg --configure -a' to correct the problem")
+          block:
+            - name: Run command to correct dpkg problem
+              ansible.builtin.command: dpkg --configure -a
+              register: reg_dpkg
+              changed_when: reg_dpkg.rc == 0
+            - name: Join the {{ mydomain + ' domain' }}
+              ansible.builtin.shell:
+                cmd: set -o pipefail && echo '{{ infra_admin_pass }}' | realm join -v -U {{ infra_admin_user }} {{ mydomain }}
+                executable: /bin/bash
+              register: reg_join_domain
+              changed_when: reg_join_domain.rc == 0
+              no_log: true
+              failed_when:
+                - reg_join_domain.rc == 1
+                - reg_join_domain.stderr is not search('Already joined to this domain')
+          rescue:
+            - name: Debug message
+              ansible.builtin.debug:
+                msg:
+                  - 'Joining the domain failed'
+                  - ''
+                  - "{{ reg_join_domain | replace(infra_admin_pass, 'obfuscated') }}"
+        - name: Debug message
+          ansible.builtin.debug:
+            msg:
+              - 'Joining the domain failed'
+              - ''
+              - "{{ reg_join_domain | replace(infra_admin_pass, 'obfuscated') }}"
+          when: reg_join_domain.stderr is not search("you must manually run 'dpkg --configure -a' to correct the problem")
+      always:
+        - name: Assert that joining the domain succeeded
+          ansible.builtin.assert:
+            that:
+              - reg_join_domain is succeeded
+    - name: Change setings in /etc/sssd/sssd.conf
       ansible.builtin.replace:
-        path: /etc/sudoers
-        regexp: '^(.*%wheel.*NOPASSWD: ALL)$'
-        replace: '\g<1>\n\n## Allows members of the "domain admins" group to run all commands\n%domain\ admins        ALL=(ALL)       ALL'
-        validate: /usr/sbin/visudo -cf %s
-      when: build.version.os_iso is not search('ubuntu')
-    - name: allow domain admins to do no password sudo
-      ansible.builtin.replace:
-        path: /etc/sudoers
-        regexp: '^(.*%sudo.*ALL)$'
-        replace: '\g<1>\n\n## Allows members of the "domain admins" group to run all commands\n%domain\ admins        ALL=(ALL)       ALL'
-        validate: /usr/sbin/visudo -cf %s
-      when: build.version.os_iso is search('ubuntu')
-  - name: check if docker or podman-docker is installed
-    ansible.builtin.shell: |
-      {% if ansible_facts.distribution == 'Ubuntu' %}dpkg -l{% else %}rpm -qa{% endif %} | grep docker
-    register: reg_docker_present
-    check_mode: no
-    ignore_errors: yes
-  - block:
-    - name: check if domain users are allowed to do sudo
-      ansible.builtin.lineinfile:
-        path: /etc/sudoers
-        line: '%domain\ users        ALL=(ALL)       {{ nopasswd }}ALL'
-      check_mode: yes
-      register: reg_ds_check
-      failed_when: reg_ds_check is failed or reg_ds_check is changed
-    rescue:
-    - name: allow domain users to do{{ ' no password ' if reg_docker_present.stdout is search('docker') else '' }}sudo
-      ansible.builtin.replace:
-        path: /etc/sudoers
-        regexp: '^(.*%wheel.*NOPASSWD: ALL)$'
-        replace: '\g<1>\n\n## Allows members of the "domain users" group to run all commands{{ npstring }}\n%domain\ users        ALL=(ALL)       {{ nopasswd}}ALL'
-        validate: /usr/sbin/visudo -cf %s
-      when: build.version.os_iso is not search('ubuntu')
-    - name: allow domain users to do{{ ' no password ' if reg_docker_present.stdout is search('docker') else '' }}sudo
-      ansible.builtin.replace:
-        path: /etc/sudoers
-        regexp: '^(.*%sudo.*ALL)$'
-        replace: '\g<1>\n\n## Allows members of the "domain users" group to run all commands{{ npstring }}\n%domain\ users        ALL=(ALL)       {{ nopasswd}}ALL'
-        validate: /usr/sbin/visudo -cf %s
-      when: build.version.os_iso is search('ubuntu')
-    vars:
-      nopasswd: "{{ 'NOPASSWD: ' if reg_docker_present.stdout is search('docker') else '' }}"
-      npstring: "{{ ' without password' if reg_docker_present.stdout is search('docker') else '' }}"
-  - block:
-    - name: Add ad_site to /etc/sssd/sssd.conf
-      ansible.builtin.lineinfile:
         path: '/etc/sssd/sssd.conf'
-        line: "ad_site = {{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }}"
-        insertafter: '^ad_domain.*$'
-      notify: restart sssd
-    - name: Disable global catalog in /etc/sssd/sssd.conf
-      ansible.builtin.lineinfile:
-        path: '/etc/sssd/sssd.conf'
-        line: 'ad_enable_gc = False'
-      notify: restart sssd
-    - name: Disable dynamic DNS update in /etc/sssd/sssd.conf
-      ansible.builtin.lineinfile:
-        path: '/etc/sssd/sssd.conf'
-        line: 'dyndns_update = False'
-      notify: restart sssd
-    - name: set ad_gpo_access_control to permissive in /etc/sssd/sssd.conf
-      ansible.builtin.lineinfile:
-        path: '/etc/sssd/sssd.conf'
-        line: 'ad_gpo_access_control = permissive'
-      notify: restart sssd
-      when: (sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name) is search('staging')
-    when:
-      - ansible_facts.distribution == 'AlmaLinux'
-  - block:
-    - name: check if domain users are allowed to SSH to VM
-      ansible.builtin.lineinfile:
-        path: /etc/ssh/sshd_config
-        regexp: '^AllowGroups.*"domain users"'
-        state: absent
-      check_mode: yes
-      register: reg_ssh_check
-      failed_when: reg_ssh_check is failed or reg_ssh_check is not changed
-    rescue:
-    - name: allow domain users to SSH to VM
-      ansible.builtin.replace:
-        path: /etc/ssh/sshd_config
-        regexp: '^(AllowGroups.*)$'
-        replace: '\g<1> "domain users"'
-      notify: restart sshd
-    when:
-      - ansible_facts.distribution == 'CentOS'
-  - block:
+        regexp: '^({{ line_item.param }} =).*$'
+        replace: '\g<1> {{ line_item.value }}'
+      loop:
+        - { param: 'fallback_homedir', value: '/home/%u' }
+        - { param: 'use_fully_qualified_names', value: 'False' }
+      loop_control:
+        loop_var: line_item
+      notify: Restart sssd
+    - name: Get the Linux distribution
+      ansible.builtin.setup:
+        filter:
+          - 'distribution*'
+    - name: Allow domain users to do sudo
+      block:
+        - name: Check if domain admins are allowed to do sudo
+          ansible.builtin.lineinfile:
+            path: /etc/sudoers
+            line: '%domain\ admins        ALL=(ALL)       ALL'
+          check_mode: true
+          register: reg_ds_check
+          failed_when: reg_ds_check is failed or reg_ds_check is changed
+      rescue:
+        - name: Allow domain admins to do sudo
+          ansible.builtin.replace:
+            path: /etc/sudoers
+            regexp: '^(.*%wheel.*NOPASSWD: ALL)$'
+            replace: '\g<1>\n\n## Allows members of the "domain admins" group to run all commands\n%domain\ admins        ALL=(ALL)       ALL'
+            validate: /usr/sbin/visudo -cf %s
+          when: build.version.os_iso is not search('ubuntu')
+        - name: Allow domain admins to do no password sudo
+          ansible.builtin.replace:
+            path: /etc/sudoers
+            regexp: '^(.*%sudo.*ALL)$'
+            replace: '\g<1>\n\n## Allows members of the "domain admins" group to run all commands\n%domain\ admins        ALL=(ALL)       ALL'
+            validate: /usr/sbin/visudo -cf %s
+          when: build.version.os_iso is search('ubuntu')
+    - name: Check if docker or podman-docker is installed
+      ansible.builtin.shell: |
+        {% if ansible_facts.distribution == 'Ubuntu' %}dpkg -l{% else %}rpm -qa{% endif %} | grep docker
+      register: reg_docker_present
+      changed_when: false
+      check_mode: false
+      ignore_errors: true
+    - name: Allow domain users to do sudo
+      vars:
+        nopasswd: "{{ 'NOPASSWD: ' if reg_docker_present.stdout is search('docker') else '' }}"
+        npstr: "{{ ' without password' if reg_docker_present.stdout is search('docker') else '' }}"
+      block:
+        - name: Check if domain users are allowed to do sudo
+          ansible.builtin.lineinfile:
+            path: /etc/sudoers
+            line: '%domain\ users        ALL=(ALL)       {{ nopasswd }}ALL'
+          check_mode: true
+          register: reg_ds_check
+          failed_when: reg_ds_check is failed or reg_ds_check is changed
+      rescue:
+        - name: Allow domain users to do{{ (' no password ' if reg_docker_present.stdout is search('docker') else '') + 'sudo' }}
+          ansible.builtin.replace:
+            path: /etc/sudoers
+            regexp: '^(.*%wheel.*NOPASSWD: ALL)$'
+            replace: |
+              '\g<1>\n\n## Allows members of the "domain users" group to run all commands{{ npstr }}\n%domain\ users        ALL=(ALL)       {{ nopasswd }}ALL'
+            validate: /usr/sbin/visudo -cf %s
+          when: build.version.os_iso is not search('ubuntu')
+        - name: Allow domain users to do{{ (' no password ' if reg_docker_present.stdout is search('docker') else '') + 'sudo' }}
+          ansible.builtin.replace:
+            path: /etc/sudoers
+            regexp: '^(.*%sudo.*ALL)$'
+            replace: |
+              '\g<1>\n\n## Allows members of the "domain users" group to run all commands{{ npstr }}\n%domain\ users        ALL=(ALL)       {{ nopasswd }}ALL'
+            validate: /usr/sbin/visudo -cf %s
+          when: build.version.os_iso is search('ubuntu')
+    - name: Configure /etc/sssd/sssd.conf for AlmaLinux
+      when:
+        - ansible_facts.distribution == 'AlmaLinux'
+      block:
+        - name: Add ad_site to /etc/sssd/sssd.conf
+          ansible.builtin.lineinfile:
+            path: '/etc/sssd/sssd.conf'
+            line: "ad_site = {{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }}"
+            insertafter: '^ad_domain.*$'
+          notify: Restart sssd
+        - name: Disable global catalog in /etc/sssd/sssd.conf
+          ansible.builtin.lineinfile:
+            path: '/etc/sssd/sssd.conf'
+            line: 'ad_enable_gc = False'
+          notify: Restart sssd
+        - name: Disable dynamic DNS update in /etc/sssd/sssd.conf
+          ansible.builtin.lineinfile:
+            path: '/etc/sssd/sssd.conf'
+            line: 'dyndns_update = False'
+          notify: Restart sssd
+        - name: Set ad_gpo_access_control to permissive in /etc/sssd/sssd.conf
+          ansible.builtin.lineinfile:
+            path: '/etc/sssd/sssd.conf'
+            line: 'ad_gpo_access_control = permissive'
+          notify: Restart sssd
+          when: (sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name) is search('staging')
+    - name: Allow domain users to SSH to CentOS VM
+      when:
+        - ansible_facts.distribution == 'CentOS'
+      block:
+        - name: Check if domain users are allowed to SSH to VM
+          ansible.builtin.lineinfile:
+            path: /etc/ssh/sshd_config
+            regexp: '^AllowGroups.*"domain users"'
+            state: absent
+          check_mode: true
+          register: reg_ssh_check
+          failed_when: reg_ssh_check is failed or reg_ssh_check is not changed
+      rescue:
+        - name: Allow domain users to SSH to VM
+          ansible.builtin.replace:
+            path: /etc/ssh/sshd_config
+            regexp: '^(AllowGroups.*)$'
+            replace: '\g<1> "domain users"'
+          notify: Restart sshd
     - name: Enable automatic home directory creation
       ansible.builtin.command: |
         pam-auth-update --enable mkhomedir
+      register: enable_homedir
+      changed_when: enable_homedir.rc == 0
       environment:
         DEBIAN_FRONTEND: 'noninteractive'
-    when:
-      - ansible_facts.distribution == 'Ubuntu'
-  - name: flush handlers
-    meta: flush_handlers
-  become: "{{ true if ansible_user != 'root' else false }}"
+      when:
+        - ansible_facts.distribution == 'Ubuntu'
+    - name: Flush handlers
+      ansible.builtin.meta: flush_handlers

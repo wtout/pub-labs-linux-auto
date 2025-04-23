@@ -6,43 +6,49 @@
     username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
     password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
     datacenter_name: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
-    validate_certs: no
+    validate_certs: false
   register: folder_info
   delegate_to: localhost
-  no_log: yes
-- block:
-  - ansible.builtin.include_tasks:
-      file: task_check_folder_empty.yml
-      apply:
-        vars:
-          foldername: "{{ folder_name }}"
-  - block:
-    - ansible.builtin.debug:
-        msg: "The folder '{{ folder_name }}' cannot be deleted because it is not empty"
-    - name: define exit_delete_loop
-      ansible.builtin.set_fact:
-        exit_delete_loop: true
-    when: not folder_empty
-  - block:
-    - name: Delete the {{ folder_name }} folder
-      community.vmware.vcenter_folder:
-        hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
-        username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
-        password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
-        datacenter_name: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
-        folder_name: "{{ folder_name.split('/')[-1] }}"
-        folder_type: vm
-        parent_folder: "{{ folder_name.split('/')[:-1]|join('/') }}"
-        state: absent
-        validate_certs: no
-      register: reg_delete_folder
-      delegate_to: localhost
-    rescue:
-    - ansible.builtin.fail:
-        msg: "Failed to delete the folder '{{ folder_name }}'"
-      when:
-        - reg_delete_folder is failed
-    when: folder_empty
+  no_log: true
+- name: Checking and deleting
   when:
     - not exit_delete_loop
-    - folder_info.flat_folder_info|select('search', folder_name)
+    - folder_info.flat_folder_info | select('search', folder_name)
+  block:
+    - name: Check folder empty
+      ansible.builtin.include_tasks:
+        file: task_check_folder_empty.yml
+        apply:
+          vars:
+            foldername: "{{ folder_name }}"
+    - name: Not deleting folder
+      when: not folder_empty
+      block:
+        - name: Information message
+          ansible.builtin.debug:
+            msg: "The folder '{{ folder_name }}' cannot be deleted because it is not empty"
+        - name: Define exit_delete_loop
+          ansible.builtin.set_fact:
+            exit_delete_loop: true
+    - name: Deleting folder
+      when: folder_empty
+      block:
+        - name: Delete the {{ folder_name + ' folder' }}
+          community.vmware.vcenter_folder:
+            hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
+            username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
+            password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
+            datacenter_name: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
+            folder_name: "{{ folder_name.split('/')[-1] }}"
+            folder_type: vm
+            parent_folder: "{{ folder_name.split('/')[:-1] | join('/') }}"
+            state: absent
+            validate_certs: false
+          register: reg_delete_folder
+          delegate_to: localhost
+      rescue:
+        - name: Debug message
+          ansible.builtin.fail:
+            msg: "Failed to delete the folder '{{ folder_name }}'"
+          when:
+            - reg_delete_folder is failed

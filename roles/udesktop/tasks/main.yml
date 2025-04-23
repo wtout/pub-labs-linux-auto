@@ -1,75 +1,77 @@
 ---
 # tasks file for udesktop
-- block:
-  - block:
-    - name: check if VM exists
-      community.vmware.vmware_guest_info:
-        hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
-        username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
-        password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
-        datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
-        name: "{{ vm.name }}"
-        schema: vsphere
-        validate_certs: no
-      no_log: yes
-      delegate_to: localhost
-    rescue:
-    - name: define ud_creds_status
-      ansible.builtin.set_fact:
-        ud_creds_status: 'The VM does not exist'
-  - name: check original credentials
-    block:
-      - name: check VM credentials
-        ansible.builtin.wait_for_connection:
-          timeout: 3
-        register: ud_vm_creds
-        check_mode: no
-    rescue:
-      - name: define ud_creds_status
-        ansible.builtin.set_fact:
-          ud_creds_status: 'The VM IP address is invalid'
-        when:
-          - ud_vm_creds.msg is defined
-          - ud_vm_creds.msg is search('Failed to connect to the host via ssh|Data could not be sent to remote host')
-      - block:
-        - name: check service account credentials
+- name: Main udesktop block
+  when:
+    - install_desktop | default(false) | bool or remove_desktop | default(false) | bool
+  tags: ['never', 'udesktop']
+  block:
+    - name: Checking if VM exists
+      block:
+        - name: Check if VM exists
+          community.vmware.vmware_guest_info:
+            hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
+            username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
+            password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
+            datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
+            name: "{{ vm.name }}"
+            schema: vsphere
+            validate_certs: false
+          no_log: true
+          delegate_to: localhost
+      rescue:
+        - name: Define ud_creds_status
+          ansible.builtin.set_fact:
+            ud_creds_status: 'The VM does not exist'
+    - name: Check original credentials
+      when:
+        - ud_creds_status | default('') == ''
+      block:
+        - name: Checking VM credentials
+          ansible.builtin.wait_for_connection:
+            timeout: 3
+          register: ud_vm_creds
+          check_mode: false
+      rescue:
+        - name: Define ud_creds_status
+          ansible.builtin.set_fact:
+            ud_creds_status: 'The VM IP address is invalid'
+          when:
+            - ud_vm_creds.msg is defined
+            - ud_vm_creds.msg is search('Failed to connect to the host via ssh|Data could not be sent to remote host')
+        - name: Check service account credentials
+          when:
+            - ud_vm_creds.msg is defined
+            - ud_vm_creds.msg is search('Invalid/incorrect')
           block:
-            - name: Switch to {{ vm_admin_user }} user
+            - name: Switch to {{ vm_admin_user + ' user' }}
               ansible.builtin.set_fact:
                 ansible_user: "{{ vm_admin_user }}"
                 ansible_ssh_pass: "{{ vm_admin_pass }}"
                 ansible_become_pass: "{{ vm_admin_pass }}"
               no_log: true
-            - name: check updated VM credentials
+            - name: Check updated VM credentials
               ansible.builtin.wait_for_connection:
                 timeout: 3
-              check_mode: no
+              check_mode: false
           rescue:
-            - name: define ud_creds_status
+            - name: Define ud_creds_status
               ansible.builtin.set_fact:
                 ud_creds_status: 'The VM credentials are invalid'
-        when:
-          - ud_vm_creds.msg is defined
-          - ud_vm_creds.msg is search('Invalid/incorrect')
-    when:
-      - ud_creds_status|default('') == ''
-  - ansible.builtin.assert:
-      that:
-        - ud_creds_status|default('') is not search('invalid')
-        - ud_creds_status|default('') is not search('does not exist')
-      fail_msg: "{{ ud_creds_status|default('') }}"
-  - name: get the Linux distribution
-    ansible.builtin.setup:
-      filter:
-        - 'distribution*'
-    when:
-      - ansible_facts.distribution is not defined or ansible_facts.distribution == ''
-  - block:
-    - include_tasks: task_install_desktop.yml
-    when: install_desktop|default(false)
-  - block:
-    - include_tasks: task_remove_desktop.yml
-    when: remove_desktop|default(false)
-  when:
-    - install_desktop | default(false) | bool or remove_desktop | default(false) | bool
-  tags: [ 'never', 'udesktop' ]
+    - name: Assert that credentials are valid
+      ansible.builtin.assert:
+        that:
+          - ud_creds_status | default('') is not search('invalid')
+          - ud_creds_status | default('') is not search('does not exist')
+        fail_msg: "{{ ud_creds_status | default('') }}"
+    - name: Get the Linux distribution
+      ansible.builtin.setup:
+        filter:
+          - 'distribution*'
+      when:
+        - ansible_facts.distribution is not defined or ansible_facts.distribution == ''
+    - name: Install desktop
+      ansible.builtin.include_tasks: task_install_desktop.yml
+      when: install_desktop | default(false)
+    - name: Remove desktop
+      ansible.builtin.include_tasks: task_remove_desktop.yml
+      when: remove_desktop | default(false)

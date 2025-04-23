@@ -1,38 +1,42 @@
 ---
 # tasks to update VM's custom attributes
-- block:
-  - name: get date and user's email address
-    ansible.builtin.shell: |
-      date '+%F'
-      {{ 'git config --file ' + auto_dir + '/.git/config user.email' if build.team_contact1 == '' else '' }}
-    register: reg_user_email
-    check_mode: no
-  - name: Update custom attributes
-    block:
-      - name: Update VM's custom attributes
-        community.vmware.vmware_guest_custom_attributes:
-          hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
-          username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
-          password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
-          datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
-          folder: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] + '/vm' + (('' if fldr_name is regex('^/') else '/') + fldr_name if fldr_name != '' else '') }}"
-          name: "{{ vm.name }}"
-          state: present
-          attributes:
-            - name: date-created
-              value: "{{ reg_user_email.stdout_lines|first }}"
-            - name: team-contact1
-              value: "{{ build.team_contact1 if build.team_contact1 != '' else reg_user_email.stdout_lines|last }}"
-            - name: team-contact2
-              value: "{{ build.team_contact2 if build.team_contact2 != '' else '' }}"
-            - name: team-mailer
-              value: "{{ build.team_mailer if build.team_mailer != '' else '' }}"
-          validate_certs: no
-        register: reg_add_attribute
-    rescue:
-      - ansible.builtin.debug:
-          msg:
-            - 'The automation user does not have sufficient privileges to modify custom attributes'
-        when:
-          - reg_add_attribute.module_stderr is search('Permission to perform this operation was denied')
+- name: Update VM's custom attributes
   delegate_to: localhost
+  block:
+    - name: Get date and user's email address
+      ansible.builtin.shell: |
+        date '+%F'
+        {{ 'git config --file ' + auto_dir + '/.git/config user.email' if build.team_contact1 == '' else '' }}
+      register: reg_user_email
+      changed_when: false
+      check_mode: false
+    - name: Update custom attributes
+      block:
+        - name: Update VM's custom attributes
+          community.vmware.vmware_guest_custom_attributes:
+            hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
+            username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
+            password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
+            datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
+            folder: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] + '/vm' + \
+              (('' if fldr_name is regex('^/') else '/') + fldr_name if fldr_name != '' else '') }}"
+            name: "{{ vm.name }}"
+            state: present
+            attributes:
+              - name: date-created
+                value: "{{ reg_user_email.stdout_lines | first }}"
+              - name: team-contact1
+                value: "{{ build.team_contact1 if build.team_contact1 != '' else reg_user_email.stdout_lines | last }}"
+              - name: team-contact2
+                value: "{{ build.team_contact2 if build.team_contact2 != '' else '' }}"
+              - name: team-mailer
+                value: "{{ build.team_mailer if build.team_mailer != '' else '' }}"
+            validate_certs: false
+          register: reg_add_attribute
+      rescue:
+        - name: Information message
+          ansible.builtin.debug:
+            msg:
+              - 'The automation user does not have sufficient privileges to modify custom attributes'
+          when:
+            - reg_add_attribute.module_stderr is search('Permission to perform this operation was denied')

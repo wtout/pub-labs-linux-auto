@@ -1,40 +1,51 @@
 ---
 # Tasks to update disks with self healing mechanism
-- block:
-  - block:
-    - name: check VM reachable
+- name: Check if VM is reachable
+  delegate_to: localhost
+  block:
+    - name: Check VM reachable
       ansible.builtin.shell: |
-        sshpass -p {{ ansible_ssh_pass }} ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -T -l {{ ansible_user }} {{ netconfig.nic1.ipaddress if netconfig.nic1.ipaddress != '' else netconfig.nic2.ipaddress }} <<EOF
+        sshpass -p {{ ansible_ssh_pass }} ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -T -l {{ ansible_user }} \
+        {{ netconfig.nic1.ipaddress if netconfig.nic1.ipaddress != '' else netconfig.nic2.ipaddress }} <<EOF
         whoami
         EOF
       register: vm_reachable1
+      changed_when: false
       until: vm_reachable1 is succeeded
       retries: 3
       delay: 10
-      no_log: yes
-    rescue:
-    - ansible.builtin.debug:
-        msg: "{{ vm_reachable1|replace(ansible_ssh_pass,'obfuscated') if ansible_ssh_pass != '' else vm_reachable1 }}"
-    always:
-    - ansible.builtin.assert:
+      no_log: true
+  rescue:
+    - name: Debug message
+      ansible.builtin.debug:
+        msg: "{{ vm_reachable1 | replace(ansible_ssh_pass, 'obfuscated') if ansible_ssh_pass != '' else vm_reachable1 }}"
+  always:
+    - name: Assert vm_reachable1 succeeded
+      ansible.builtin.assert:
         that: vm_reachable1 is succeeded
-    delegate_to: localhost
-  - name: Update disks
-    block:
-      - include_tasks: task_update_disks.yml
-    rescue:
-      - include_tasks: task_delete_ssh_key.yml
-      - include_tasks: task_delete_vm.yml
-      - include_tasks: task_deploy_iso_self_healing.yml
-      - include_tasks: task_delete_gtw_nic1_self_healing.yml
-      - include_tasks: task_update_disks.yml
-    always:
-      - name: define disk_rebuild
-        ansible.builtin.set_fact:
-          disk_rebuild: "{{ vmguest_disk0|default({'failed': false}) is failed or vmguest_disk1|default({'failed': false}) is failed or vmguest_disk2|default({'failed': false}) is failed or vmguest_disk3|default({'failed': false}) is failed }}"
-      - name: check if rebuild is still required
-        ansible.builtin.assert:
-          that:
-            - not disk_rebuild|default(false)
-          success_msg: 'Disks updated successfully'
-          fail_msg: 'Unable to update the disks successfully'
+- name: Update disks
+  block:
+    - name: Update disks
+      ansible.builtin.include_tasks: task_update_disks.yml
+  rescue:
+    - name: Delete SSH keys
+      ansible.builtin.include_tasks: task_delete_ssh_key.yml
+    - name: Delete VM
+      ansible.builtin.include_tasks: task_delete_vm.yml
+    - name: Deploy ISO self healing
+      ansible.builtin.include_tasks: task_deploy_iso_self_healing.yml
+    - name: Delete NIC1 gateway self healing
+      ansible.builtin.include_tasks: task_delete_gtw_nic1_self_healing.yml
+    - name: Update disks
+      ansible.builtin.include_tasks: task_update_disks.yml
+  always:
+    - name: Define disk_rebuild
+      ansible.builtin.set_fact:
+        disk_rebuild: "{{ vmguest_disk0 | default({'failed': false}) is failed or vmguest_disk1 | default({'failed': false}) is failed or \
+          vmguest_disk2 | default({'failed': false}) is failed or vmguest_disk3 | default({'failed': false}) is failed }}"
+    - name: Check if rebuild is still required
+      ansible.builtin.assert:
+        that:
+          - not disk_rebuild | default(false)
+        success_msg: 'Disks updated successfully'
+        fail_msg: 'Unable to update the disks successfully'

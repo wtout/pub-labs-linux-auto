@@ -1,18 +1,21 @@
 ---
 # tasks to delete VM
-- block:
-  - include_tasks: task_define_folder_name.yml
-    when: fldr_name is undefined
-  - name: Delete VM
-    community.vmware.vmware_guest:
-      hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
-      username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
-      password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
-      name: "{{ vm.name }}"
-      datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
-      cluster: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['cluster'] }}"
-      folder: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] + '/vm' + (('' if fldr_name is regex('^/') else '/') + fldr_name if fldr_name != '' else '') }}"
-      state: absent
-      force: yes
-      validate_certs: no
+- name: Delete VM
   delegate_to: localhost
+  block:
+    - name: Define folder name
+      ansible.builtin.include_tasks: task_define_folder_name.yml
+      when: fldr_name is undefined
+    - name: Delete VM
+      community.vmware.vmware_guest:
+        hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
+        username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
+        password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
+        name: "{{ vm.name }}"
+        datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
+        cluster: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['cluster'] }}"
+        folder: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] + '/vm' + \
+          (('' if fldr_name is regex('^/') else '/') + fldr_name if fldr_name != '' else '') }}"
+        state: absent
+        force: true
+        validate_certs: false
