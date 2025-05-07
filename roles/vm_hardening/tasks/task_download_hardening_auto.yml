@@ -1,0 +1,47 @@
+---
+# Tasks to clone the repo
+- block:
+  - block:
+    - name: clone the repo
+      git:
+        repo: "{{ hardening_site }}/{{ hardening_reponame }}.git"
+        dest: "{{ auto_dir }}/roles/{{ hardening_reponame }}"
+        version: 'HEAD'
+        force: yes
+      register: reg_clone_repo1
+    rescue:
+    - name: re-clone the repo
+      git:
+        repo: "{{ hardening_site }}/{{ hardening_reponame }}.git"
+        dest: "{{ auto_dir }}/roles/{{ hardening_reponame }}"
+        version: 'HEAD'
+        force: yes
+      register: reg_clone_repo2
+  - name: define clone_repo
+    ansible.builtin.set_fact:
+      clone_repo: "{{ reg_clone_repo1 if reg_clone_repo1 is succeeded else reg_clone_repo2 }}"
+  - block:
+    - name: switch to last tagged version of {{ hardening_reponame }}
+      ansible.builtin.shell: |
+        git checkout tags/$(git tag --sort=-version:refname|head -1)
+      args:
+        chdir: "{{ auto_dir }}/roles/{{ hardening_reponame }}"
+    rescue:
+    - name: switch to last tagged version of {{ hardening_reponame }}
+      ansible.builtin.shell: |
+        git checkout tags/$(git tag|sort -rV|head -1)
+      args:
+        chdir: "{{ auto_dir }}/roles/{{ hardening_reponame }}"
+  - name: download the required roles
+    ansible.builtin.shell: |
+      ansible-galaxy install -r requirements.yml -p {{ auto_dir }}/roles
+    args:
+      chdir: "{{ auto_dir }}/roles/{{ hardening_reponame }}"
+  - name: set the required permissions on downloaded roles
+    ansible.builtin.shell: |
+      chmod -R o+w ansible-*
+    args:
+      chdir: "{{ auto_dir }}/roles"
+    become: yes
+  delegate_to: localhost
+  run_once: true

@@ -1,0 +1,45 @@
+---
+# Task file to delete DNS records
+- block:
+  - include_tasks:
+      file: task_delete_forward_record.yml
+      apply:
+        vars:
+          mydesignation: 'primary'
+          myserver: "{{ sysconfig.primary.dns_servers[0] }}"
+          mydomain: "{{ sysconfig.primary.domain_name }}"
+          myrecord: "{{ vm.name }}"
+          myipaddress: "{{ netconfig.nic1.ipaddress if vm.name is not search('csr') else netconfig.nic3.ipaddress }}"
+  - include_tasks:
+      file: task_delete_reverse_record.yml
+      apply:
+        vars:
+          mydesignation: 'primary'
+          myserver: "{{ sysconfig.primary.dns_servers[0] }}"
+          mydomain: "{{ sysconfig.primary.domain_name }}"
+          myrecord: "{{ vm.name }}"
+          myipaddress: "{{ netconfig.nic1.ipaddress if vm.name is not search('csr') else netconfig.nic3.ipaddress }}"
+  when:
+    - "'stack' in group_names"
+- block:
+  - include_tasks:
+      file: task_delete_forward_record.yml
+      apply:
+        vars:
+          mydesignation: 'secondary'
+          myserver: "{{ sysconfig.secondary.dns_servers[0] }}"
+          mydomain: "{{ sysconfig.secondary.domain_name }}"
+          myrecord: "{{ vm.name }}"
+          myipaddress: "{{ netconfig.nic1.ipaddress if vm.name is not search('csr') else netconfig.nic3.ipaddress }}"
+  - include_tasks:
+      file: task_delete_reverse_record.yml
+      apply:
+        vars:
+          mydesignation: 'secondary'
+          myserver: "{{ sysconfig.secondary.dns_servers[0] }}"
+          mydomain: "{{ sysconfig.secondary.domain_name }}"
+          myrecord: "{{ vm.name }}"
+          myipaddress: "{{ netconfig.nic1.ipaddress if vm.name is not search('csr') else netconfig.nic3.ipaddress }}"
+  when:
+    - build.disaster_recovery
+    - "'dr' in group_names"

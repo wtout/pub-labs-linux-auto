@@ -1,0 +1,126 @@
+#cloud-config
+autoinstall:
+  apt:
+    disable_components: []
+    fallback: abort
+    geoip: true
+    mirror-selection:
+      primary:
+      - country-mirror
+      - arches:
+        - amd64
+        - i386
+        uri: http://archive.ubuntu.com/ubuntu
+      - arches:
+        - s390x
+        - arm64
+        - armhf
+        - powerpc
+        - ppc64el
+        - riscv64
+        uri: http://ports.ubuntu.com/ubuntu-ports
+    preserve_sources_list: false
+  codecs:
+    install: false
+  drivers:
+    install: false
+  identity:
+    hostname: {{ vm.name }}
+    password: {{ vm_admin_pass | password_hash('sha512') }}
+    realname: PAE Labs Admin
+    username: {{ vm_admin_user }}
+  kernel:
+    package: linux-generic
+  keyboard:
+    layout: us
+    toggle: null
+    variant: ''
+  locale: en_US.UTF-8
+  network:
+    ethernets:
+      {{ netconfig.nic1.intname }}:
+        addresses:
+        - {{ netconfig.nic1.ipaddress }}/24
+        nameservers:
+          addresses:
+          - {{ (sysconfig.secondary.dns_servers if 'dr' in group_names else sysconfig.primary.dns_servers)|first }}
+          - {{ (sysconfig.secondary.dns_servers if 'dr' in group_names else sysconfig.primary.dns_servers)|last }}
+          search:
+          - {{ sysconfig.secondary.domain_name if 'dr' in group_names else sysconfig.primary.domain_name }}
+        routes:
+        - to: default
+          via: {{ netconfig.nic1.gateway if netconfig.nic1.gateway != '' else ((build.secondary.octets if 'dr' in group_names else build.primary.octets) + '.254') if (build.secondary.octets if 'dr' in group_names else build.primary.octets) is defined else '' }}
+    version: 2
+  proxy: {%+ if proxy_address is defined and proxy_address != '' +%}{{ proxy_address }}{%+ endif +%}
+  source:
+    id: ubuntu-server
+    search_drivers: false
+  ssh:
+    allow-pw: true
+    authorized-keys: []
+    install-server: true
+  storage:
+    config:
+    - ptable: gpt
+      path: /dev/sda
+      wipe: superblock-recursive
+      preserve: false
+      name: ''
+      grub_device: true
+      type: disk
+      id: disk-sda
+    - device: disk-sda
+      size: 1048576
+      flag: bios_grub
+      number: 1
+      preserve: false
+      grub_device: false
+      offset: 1048576
+      path: /dev/sda1
+      type: partition
+      id: partition-0
+    - device: disk-sda
+      size: -1
+      wipe: superblock
+      number: 2
+      preserve: false
+      grub_device: false
+      path: /dev/sda2
+      type: partition
+      id: partition-1
+    - fstype: xfs
+      volume: partition-1
+      preserve: false
+      type: format
+      id: format-1
+    - path: /
+      device: format-1
+      type: mount
+      id: mount-1
+  updates: security
+  user-data:
+    write_files:
+    - content: |
+        rm -f /etc/resolv.conf; ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
+{% if vm_app_user != '' %}
+        useradd -p $(openssl passwd -6 '{{ vm_app_pass }}') {{ vm_app_user }}; passwd --expire {{ vm_app_user }}
+        printf 'Host_Alias  {{ vm_app_user | upper }}_SUDO_HOSTS = ALL\nRunas_Alias {{ vm_app_user | upper }}_SUDO_RUNAS = ALL\nCmnd_Alias  {{ vm_app_user | upper }}_SUDO_CMNDS = ALL\nCmnd_Alias  {{ vm_app_user | upper }}_SHELLS = /bin/bash, /sbin/nologin, /usr/bin/bash, /usr/sbin/nologin, /bin/csh, /bin/zsh, /bin/tcsh, /bin/ksh, /usr/bin/ksh, /usr/bin/rsh, /bin/chsh, /usr/bin/chsh\nCmnd_Alias  {{ vm_app_user | upper }}_RP = /usr/bin/passwd root, /usr/bin/passwd paelabsadmin,  /usr/sbin/usermod, /usr/bin/su\nCmnd_Alias  {{ vm_app_user | upper }}_EXEC = /bin/vi, /bin/vim, /bin/more, /bin/less, /usr/bin/vi, /usr/bin/vim, /usr/bin/more, /usr/bin/less\n%%{{ vm_app_user }} {{ vm_app_user | upper }}_SUDO_HOSTS = ({{ vm_app_user | upper }}_SUDO_RUNAS) NOPASSWD: {{ vm_app_user | upper }}_SUDO_CMNDS, !{{ vm_app_user | upper }}_RP, !{{ vm_app_user | upper }}_SHELLS, ({{ vm_app_user | upper }}_SUDO_RUNAS) NOEXEC: {{ vm_app_user | upper }}_EXEC\n%%role\ -\ linux\ l4\ users@cisco-cms.com {{ vm_app_user | upper }}_SUDO_HOSTS = ({{ vm_app_user | upper }}_SUDO_RUNAS) NOPASSWD: {{ vm_app_user | upper }}_SUDO_CMNDS, !{{ vm_app_user | upper }}_SHELLS\n' > /etc/sudoers.d/{{ vm_app_user }}
+{% endif %}
+        printf 'Host_Alias  {{ vm_admin_user | upper }}_SUDO_HOSTS = ALL\nRunas_Alias {{ vm_admin_user | upper }}_SUDO_RUNAS = ALL\nCmnd_Alias  {{ vm_admin_user | upper }}_SUDO_CMNDS = ALL\nCmnd_Alias  {{ vm_admin_user | upper }}_SHELLS = /bin/bash, /sbin/nologin, /usr/bin/bash, /usr/sbin/nologin, /bin/csh, /bin/zsh, /bin/tcsh, /bin/ksh, /usr/bin/ksh, /usr/bin/rsh, /bin/chsh, /usr/bin/chsh\n%%{{ vm_admin_user }} {{ vm_admin_user | upper }}_SUDO_HOSTS = ({{ vm_admin_user | upper }}_SUDO_RUNAS) {{ vm_admin_user | upper }}_SUDO_CMNDS, !{{ vm_admin_user | upper }}_SHELLS\n' > /etc/sudoers.d/{{ vm_admin_user }}
+{% if proxy_address is defined and proxy_address != '' %}
+        printf 'proxy_address="{{ proxy_address }}"\nexport http_proxy=${proxy_address}\nexport https_proxy=${proxy_address}\nexport ftp_proxy=${proxy_address}\nexport no_proxy='.cisco.com,.cisco-pae.com,.staging.cisco-cms.com,.cisco-cms.com,172.19.0.0/16,172.23.0.0/16,172.30.0.0/16'\n' > /etc/profile.d/setproxy.sh
+        sh /etc/profile.d/setproxy.sh
+        printf 'Acquire::http::Proxy "{{ proxy_address }}";\nAcquire::https::Proxy "{{ proxy_address }}";\n\n' > /etc/apt/apt.conf.d/proxy.conf
+        sed -i 's|^#\(Defaults.*https_proxy.*\)$|\1|' /etc/sudoers
+{% endif %}
+        printf 'SSHD: 172.0.0.0/255.0.0.0\nsnmpd: 172.0.0.0/255.0.0.0' >> /etc/hosts.allow
+        printf '\nblacklist {\n    device {\n        vendor "VMware"\n        product "Virtual disk"\n    }\n}\n' >> /etc/multipath.conf
+        export DEBIAN_FRONTEND=noninteractive
+        killall -9 apt-get
+        apt-get update
+        apt-get -yqq install chrony iptables aide sshpass snmp snmpd rsyslog expect screen realmd sssd sssd-tools libnss-sss libpam-sss adcli samba-common-bin oddjob oddjob-mkhomedir packagekit podman
+        sed -i '/^.*iburst.*$/d' /etc/chrony/chrony.conf; sed -i 's/^\(# See http.*\)$/\1\n{% if 'dr' in group_names %} {%- if sysconfig.secondary.ntp_server|type_debug == 'list' %} {%- for line in sysconfig.secondary.ntp_server|join(',')|split(', ') %} {{- 'server ' + line + ' iburst\\n' -}} {% endfor -%} {% else %} {{- 'server ' + sysconfig.secondary.ntp_server + ' iburst\\n' -}} {% endif -%} {% else %} {%- if sysconfig.primary.ntp_server|type_debug == 'list' %} {%- for line in sysconfig.primary.ntp_server|join(',')|split(', ') %} {{- 'server ' + line + ' iburst\\n' -}} {% endfor -%} {% else %} {{- 'server ' + sysconfig.primary.ntp_server + ' iburst\\n' -}} {% endif -%} {% endif -%}/' /etc/chrony/chrony.conf
+        touch /var/log/installer/build.complete
+      path: {{ piscript }}
+  updates: security
+  version: 1

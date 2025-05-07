@@ -1,0 +1,10 @@
+all:
+  children:
+    vcenter:
+      hosts:
+        vcenter[01:01]:
+    stack:
+      children:
+        lnxvm:
+          hosts:
+            lnxvm[01:{{ '%02d' | format(environment_definition.build.primary.number_of_lnxvm|int) }}]:

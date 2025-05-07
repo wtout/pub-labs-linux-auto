@@ -1,0 +1,29 @@
+---
+# Tasks to create the Ubuntu autoinstall ISO
+- block:
+  - name: get original ISO info
+    ansible.builtin.shell: |
+      xorriso -indev {{ auto_dir }}/{{ iso_dir }}/{{ build.version.os_iso }} -report_el_torito as_mkisofs
+    register: reg_iso_info
+    check_mode: no
+  - name: Create the new Ubuntu Autoinstall ISO
+    ansible.builtin.shell: |
+      xorriso -as mkisofs -r -o {{ role_path }}/files/{{ vm.name }}-tmpdir/{{ (build.version.os_iso|split('-'))[:2]|join('-') + '-autoinstall.iso' }} \
+      -V {{ reg_iso_info.stdout_lines|select('search','-V')|join|split('-V ')|last }} \
+      --modification-date={{ reg_iso_info.stdout_lines|select('search','modification-date')|join|split('=')|last }} \
+      --grub2-mbr ../BOOT/1-Boot-NoEmul.img \
+      -partition_offset 16 \
+      --mbr-force-bootable \
+      -append_partition 2 {{ (reg_iso_info.stdout_lines|select('search','append_partition')|join|split(' '))[2] }} ../BOOT/2-Boot-NoEmul.img \
+      -appended_part_as_gpt \
+      -iso_mbr_part_type {{ reg_iso_info.stdout_lines|select('search','iso_mbr_part_type')|join|split(' ')|last }} \
+      -c '/boot.catalog' \
+      -b '/boot/grub/i386-pc/eltorito.img' \
+      -no-emul-boot -boot-load-size 4 -boot-info-table --grub2-boot-info -eltorito-alt-boot \
+      -e {{ reg_iso_info.stdout_lines|select('search','appended_partition')|join|split('-e ')|last }} \
+      -no-emul-boot \
+      -boot-load-size 10068 \
+      .
+    args:
+      chdir: "{{ role_path }}/files/{{ vm.name }}-tmpdir/source_files"
+  delegate_to: localhost
