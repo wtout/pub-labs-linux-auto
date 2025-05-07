@@ -1,11 +1,13 @@
-name: Release Branch Automation
+name: Continuous Integration
 
 # Controls when the action will run
 on:
   workflow_dispatch:
   push:
     branches:
-      - release/*
+      - develop
+      - feature/*
+      - hotfix/*
   pull_request:
 
 env:
@@ -32,7 +34,7 @@ jobs:
       - name: Check Complete Status
         id: ic
         run: |
-          if echo "${{ env.HEAD_COMMIT_MESSAGE }}" | grep -E 'Release Complete' &>/dev/null
+          if echo "${{ env.HEAD_COMMIT_MESSAGE }}" | grep -E '(Feature|HotFix) Complete' &>/dev/null
           then
             echo "is-complete=true" >> $GITHUB_OUTPUT
           else
@@ -123,8 +125,68 @@ jobs:
           echo 'export MYINVOKER=github' >> ~/.bashrc
           bash -x Bash/play_deploy.sh --envname build_def_file --skip-tags $(grep -r ' tags:' roles/ | awk -F 'tags: ' '{print $NF}' | sed "s/\[\|\]\|'\|,//g" | tr ' ' '\n' | grep -ve 'always\|never\|define_inventory' | sort -u | xargs | tr ' ' ',')
 
-  merge_release:
-    if: needs.get_info.outputs.is-complete == 'true'
+  merge_feature:
+    if: |
+      contains(needs.get_info.outputs.current-branch, 'feature') &&
+      needs.get_info.outputs.is-complete == 'true'
+    runs-on: ubuntu-latest
+    needs: [get_info, test_deploy]
+    steps:
+      - name: Checkout source repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ env.MYGH_TOKEN }}
+      - name: Configure Git
+        run: |
+          git config user.email \<\>
+          git config user.name "Wassim Tout"
+          git remote set-url origin https://${{ env.ORG_NAME }}:${{ env.MYGH_TOKEN }}@github.com/${{ env.ORG_NAME }}/${{ env.ORIGINAL_REPO_NAME }}.git
+      - name: Get Remote Updates
+        run: |
+          git remote update
+      - name: Update Local ${{ needs.get_info.outputs.current-branch }} Branch
+        run: |
+          git pull origin ${{ needs.get_info.outputs.current-branch }}
+      - name: Get List of Files From Feature branch
+        run: |
+          git ls-files | sort > featurefiles
+      - name: Switch to develop branch
+        run: |
+          git checkout develop
+      - name: Update Local develop Branch
+        run: |
+          git pull origin develop
+      - name: Test Merge
+        run: |
+          git merge --no-commit --no-ff ${{ needs.get_info.outputs.current-branch }} --allow-unrelated-histories -X theirs || exit 0
+          if [[ -f .git/MERGE_HEAD ]]
+          then
+            git merge --abort
+          fi
+      - name: Merge ${{ needs.get_info.outputs.current-branch }} into develop
+        run: |
+          git merge --no-ff ${{ needs.get_info.outputs.current-branch }} --allow-unrelated-histories -X theirs
+      - name: Get List of Files From Develop branch
+        run: |
+          git ls-files | sort > developfiles
+      - name: Delete Files And Commit If Removed Files Are Still Present
+        run: |
+          if diff featurefiles developfiles | grep '^>'
+          then
+            git rm -f $(diff featurefiles developfiles | grep '^>' | awk '{print $NF}' | tr '\n' ' ')
+            git commit -m 'Removed files deleted by Feature'
+          fi
+      - name: Push develop Branch to Remote Repo
+        run: |
+          git push origin develop
+      - name: Delete ${{ needs.get_info.outputs.current-branch }} Branch From Remote Repo
+        run: |
+          git push origin :${{ needs.get_info.outputs.current-branch }}
+
+  merge_hotfix:
+    if: |
+      contains(needs.get_info.outputs.current-branch, 'hotfix') &&
+      needs.get_info.outputs.is-complete == 'true'
     runs-on: ubuntu-latest
     needs: [get_info, test_deploy]
     steps:
@@ -149,21 +211,15 @@ jobs:
       - name: Show the Action Tag
         run: |
           echo "The current tag is ${{ steps.lt.outputs.last-tag }}"
-      - name: Determine the release-type
-        id: rt
-        run: |
-          read -r P1 P2 P3 <<< $(echo ${{ needs.get_info.outputs.current-branch }} | awk -F '/' '{print $NF}' | tr '.' ' ')
-          { [[ ${P2} -eq 0 ]] && REL_TYPE='Major'; } || REL_TYPE='Minor'
-          echo "release_type=${REL_TYPE}" >> $GITHUB_OUTPUT
       - name: Get The Next Tag
         id: nt
         uses: wtout/get-next-tag-action@v6
         with:
-          release-type: ${{ steps.rt.outputs.release_type }}
+          release-type: 'HotFix'
           current-tag: ${{ steps.lt.outputs.last-tag }}
-      - name: Get List of Files From Release branch
+      - name: Get List of Files From HotFix branch
         run: |
-          git ls-files | sort > releasefiles
+          git ls-files | sort > hotfixfiles
       - name: Switch to master branch
         run: |
           git checkout master
@@ -185,14 +241,14 @@ jobs:
           git ls-files | sort > masterfiles
       - name: Delete Files And Commit If Removed Files Are Still Present
         run: |
-          if diff releasefiles masterfiles | grep '^>'
+          if diff hotfixfiles masterfiles | grep '^>'
           then
-            git rm -f $(diff releasefiles masterfiles | grep '^>' | awk '{print $NF}' | tr '\n' ' ')
-            git commit -m 'Removed files deleted by Release'
+            git rm -f $(diff hotfixfiles masterfiles | grep '^>' | awk '{print $NF}' | tr '\n' ' ')
+            git commit -m 'Removed files deleted by HotFix'
           fi
       - name: Create New Tag
         run: |
-          git tag -a ${{ steps.nt.outputs.next-tag }} -m "Create release tag ${{ steps.nt.outputs.next-tag }}"
+          git tag -a ${{ steps.nt.outputs.next-tag }} -m "Create HotFix tag ${{ steps.nt.outputs.next-tag }}"
       - name: Push master Branch And Tags to Remote Repo
         run: |
           git push origin master
@@ -212,16 +268,16 @@ jobs:
           fi
       - name: Merge ${{ needs.get_info.outputs.current-branch }} into develop
         run: |
-          git merge --no-ff ${{ needs.get_info.outputs.current-branch }} --allow-unrelated-histories -X theirs
+          git merge ${{ needs.get_info.outputs.current-branch }} --allow-unrelated-histories -X theirs
       - name: Get List of Files From Develop Branch
         run: |
           git ls-files | sort > developfiles
       - name: Delete Files And Commit If Removed Files Are Still Present
         run: |
-          if diff releasefiles developfiles | grep '^>'
+          if diff hotfixfiles developfiles | grep '^>'
           then
-            git rm -f $(diff releasefiles developfiles | grep '^>' | awk '{print $NF}' | tr '\n' ' ')
-            git commit -m 'Removed files deleted by Release'
+            git rm -f $(diff hotfixfiles developfiles | grep '^>' | awk '{print $NF}' | tr '\n' ' ')
+            git commit -m 'Removed files deleted by HotFix'
           fi
       - name: Push develop Branch to Remote Repo
         run: |
