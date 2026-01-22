@@ -1,0 +1,75 @@
+---
+# tasks file for amp_connector
+- block:
+  - block:
+    - name: check if VM exists
+      community.vmware.vmware_guest_info:
+        hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
+        username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
+        password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
+        datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
+        name: "{{ vm.name }}"
+        schema: vsphere
+        validate_certs: no
+      no_log: yes
+      delegate_to: localhost
+    rescue:
+    - name: define ac_creds_status
+      ansible.builtin.set_fact:
+        ac_creds_status: 'The VM does not exist'
+  - name: check original credentials
+    block:
+      - name: check VM credentials
+        ansible.builtin.wait_for_connection:
+          timeout: 3
+        register: ac_vm_creds
+        check_mode: no
+    rescue:
+      - name: define ac_creds_status
+        ansible.builtin.set_fact:
+          ac_creds_status: 'The VM IP address is invalid'
+        when:
+          - ac_vm_creds.msg is defined
+          - ac_vm_creds.msg is search('Failed to connect to the host via ssh|Data could not be sent to remote host')
+      - block:
+        - name: check service account credentials
+          block:
+            - name: Switch to {{ vm_admin_user }} user
+              ansible.builtin.set_fact:
+                ansible_user: "{{ vm_admin_user }}"
+                ansible_ssh_pass: "{{ vm_admin_pass }}"
+                ansible_become_pass: "{{ vm_admin_pass }}"
+              no_log: true
+            - name: check updated VM credentials
+              ansible.builtin.wait_for_connection:
+                timeout: 3
+              check_mode: no
+          rescue:
+            - name: define ac_creds_status
+              ansible.builtin.set_fact:
+                ac_creds_status: 'The VM credentials are invalid'
+        when:
+          - ac_vm_creds.msg is defined
+          - ac_vm_creds.msg is search('Invalid/incorrect')
+    when:
+      - ac_creds_status|default('') == ''
+  - ansible.builtin.assert:
+      that:
+        - ac_creds_status|default('') is not search('invalid')
+        - ac_creds_status|default('') is not search('does not exist')
+      fail_msg: "{{ ac_creds_status|default('') }}"
+  - name: get the Linux distribution
+    ansible.builtin.setup:
+      filter:
+        - 'distribution*'
+    when:
+      - ansible_facts.distribution is not defined or ansible_facts.distribution == ''
+  - block:
+    - include_tasks: task_install_connector.yml
+    when: install_connector|default(false)
+  - block:
+    - include_tasks: task_remove_connector.yml
+    when: remove_connector|default(false)
+  when:
+    - install_connector | default(false) | bool or remove_connector | default(false) | bool
+  tags: [ 'never', 'amp_connector' ]

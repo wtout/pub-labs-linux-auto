@@ -1,0 +1,1 @@
+{% include 'templates/' + (build.version.os_iso|lower|split('-'))[:2]|join|replace('.','') + '_kickstart.cfg.tmpl' %}

@@ -1,0 +1,9 @@
+---
+# vars file for vm_fromiso
+chrony_file: '/etc/chrony.conf'
+iso_dir: 'Packages/ISO'
+iso_installer: "{{ build.version.os_iso }}"
+piscript: '/var/log/installer/postinstall_script.sh'
+picomplete: '/var/log/installer/build.complete'
+vm_app_user: "{{ user.name }}"
+vm_app_pass: "{{ user.password if user.password != '' else vars[('S' if 'dr' in group_names else 'P') + 'LINUX_APPADMIN_PASS'] }}"

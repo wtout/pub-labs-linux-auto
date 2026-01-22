@@ -1,0 +1,8 @@
+---
+# Tasks to create the hardening script
+- block:
+  - name: Create hardening script
+    ansible.builtin.template:
+      src: templates/hardening.sh.tmpl
+      dest: "{{ role_path }}/files/{{ vm.name }}-hardening.sh"
+  delegate_to: localhost

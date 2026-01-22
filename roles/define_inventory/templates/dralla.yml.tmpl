@@ -1,0 +1,112 @@
+##################################################################################
+# DR VM specific information
+##################################################################################
+drvm_vars:
+
+  ################
+  # Linux VM
+  ################
+  lnxvm:
+
+{%- if environment_definition.drvm_setting.lnxvm.user.name is defined and environment_definition.drvm_setting.lnxvm.user.name != none and environment_definition.drvm_setting.lnxvm.user.name != '' and environment_definition.drvm_setting.lnxvm.user.name != SLINUX_LABSADMIN_USER or (environment_definition.drvm_setting.lnxvm.user.password is defined and environment_definition.drvm_setting.lnxvm.user.password != none and environment_definition.drvm_setting.lnxvm.user.password != '') %}
+{% block lnxvmusers %}
+    # User credentials
+    user:
+{%- if environment_definition.drvm_setting.lnxvm.user.name is defined and environment_definition.drvm_setting.lnxvm.user.name != none and environment_definition.drvm_setting.lnxvm.user.name != '' and environment_definition.drvm_setting.lnxvm.user.name != SLINUX_LABSADMIN_USER %}
+      name: "{{ environment_definition.drvm_setting.lnxvm.user.name }}"
+{% endif %}
+{%- if environment_definition.drvm_setting.lnxvm.user.password is defined and environment_definition.drvm_setting.lnxvm.user.password != none and environment_definition.drvm_setting.lnxvm.user.password != '' %}
+      password: "{{ environment_definition.drvm_setting.lnxvm.user.password }}"
+{% endif %}
+{%- endblock lnxvmusers %}
+{%- endif %}
+
+    # number of CPUs
+    cpu: "{{ environment_definition.drvm_setting.lnxvm.cpu if (environment_definition.drvm_setting.lnxvm.cpu is defined and environment_definition.drvm_setting.lnxvm.cpu != none) else '' }}"
+
+    # Memory size in GiB
+    memory: "{{ environment_definition.drvm_setting.lnxvm.memory if (environment_definition.drvm_setting.lnxvm.memory is defined and environment_definition.drvm_setting.lnxvm.memory != none) else '' }}"
+
+    # Disks sizing in GiB
+    disk0: "{{ environment_definition.drvm_setting.lnxvm.disk0 if (environment_definition.drvm_setting.lnxvm.disk0 is defined and environment_definition.drvm_setting.lnxvm.disk0 != none) else '40' }}"
+    disk1: "{{ environment_definition.drvm_setting.lnxvm.disk1 if (environment_definition.drvm_setting.lnxvm.disk1 is defined and environment_definition.drvm_setting.lnxvm.disk1 != none) else '25' }}"
+    disk2: "{{ environment_definition.drvm_setting.lnxvm.disk2 if (environment_definition.drvm_setting.lnxvm.disk2 is defined and environment_definition.drvm_setting.lnxvm.disk2 != none) else '0' }}"
+    disk3: "{{ environment_definition.drvm_setting.lnxvm.disk3 if (environment_definition.drvm_setting.lnxvm.disk3 is defined and environment_definition.drvm_setting.lnxvm.disk3 != none) else '0' }}"
+
+    disk1_mount: "{{ (environment_definition.drvm_setting.lnxvm.disk1_mount if (environment_definition.drvm_setting.lnxvm.disk1_mount is defined and environment_definition.drvm_setting.lnxvm.disk1_mount != none) else '/opt') if (environment_definition.drvm_setting.lnxvm.disk1 is not defined or environment_definition.drvm_setting.lnxvm.disk1 is defined and environment_definition.drvm_setting.lnxvm.disk1 != 0) else '' }}"
+    disk2_mount: "{{ (environment_definition.drvm_setting.lnxvm.disk2_mount if (environment_definition.drvm_setting.lnxvm.disk2_mount is defined and environment_definition.drvm_setting.lnxvm.disk2_mount != none) else '/data01') if environment_definition.drvm_setting.lnxvm.disk2 is defined and environment_definition.drvm_setting.lnxvm.disk2 != 0 else '' }}"
+    disk3_mount: "{{ (environment_definition.drvm_setting.lnxvm.disk3_mount if (environment_definition.drvm_setting.lnxvm.disk3_mount is defined and environment_definition.drvm_setting.lnxvm.disk3_mount != none) else '/data02') if environment_definition.drvm_setting.lnxvm.disk3 is defined and environment_definition.drvm_setting.lnxvm.disk3 != 0 else '' }}"
+
+    disk_provisioning: "{{ environment_definition.drvm_setting.lnxvm.disk_provisioning if (environment_definition.drvm_setting.lnxvm.disk_provisioning is defined and environment_definition.drvm_setting.lnxvm.disk_provisioning != none) else '' }}"
+
+    hostmap: {{ (environment_definition.drvm_setting.lnxvm.hostmap.split(',')|map('trim')|list if environment_definition.drvm_setting.lnxvm.hostmap is search(',') else [environment_definition.drvm_setting.lnxvm.hostmap|string]) if (environment_definition.drvm_setting.lnxvm.hostmap is defined and environment_definition.drvm_setting.lnxvm.hostmap != none) else [] }}
+
+    vmname: "{{ environment_definition.drvm_setting.lnxvm.vmname if (environment_definition.drvm_setting.lnxvm.vmname is defined and environment_definition.drvm_setting.lnxvm.vmname != none) else '' }}"
+
+    # Network interface 1
+    ################
+    nic1:
+
+      # Interface name
+      intname: "{{ environment_definition.drvm_setting.lnxvm.nic1.intname if (environment_definition.drvm_setting.lnxvm.nic1.intname is defined and environment_definition.drvm_setting.lnxvm.nic1.intname != none) else 'ens160' }}"
+
+      # IP pool
+      ip_pool: {{ environment_definition.drvm_setting.lnxvm.nic1.ip_pool if (environment_definition.drvm_setting.lnxvm.nic1.ip_pool is defined and environment_definition.drvm_setting.lnxvm.nic1.ip_pool != none) else [] }}
+
+      # IP fourth octet pool
+      ip_octetpool: {{ environment_definition.drvm_setting.lnxvm.nic1.ip_octetpool if (environment_definition.drvm_setting.lnxvm.nic1.ip_octetpool is defined and environment_definition.drvm_setting.lnxvm.nic1.ip_octetpool != none) else [] }}
+
+      # Gateway
+      gtw: "{{ environment_definition.drvm_setting.lnxvm.nic1.gtw if (environment_definition.drvm_setting.lnxvm.nic1.gtw is defined and environment_definition.drvm_setting.lnxvm.nic1.gtw != none) else '' }}"
+
+      # Gateway fourth octet
+      gtw_octet: "{{ environment_definition.drvm_setting.lnxvm.nic1.gtw_octet if (environment_definition.drvm_setting.lnxvm.nic1.gtw_octet is defined and environment_definition.drvm_setting.lnxvm.nic1.gtw_octet != none) else '' }}"
+
+      # Netmask
+      netmask: "{{ environment_definition.drvm_setting.lnxvm.nic1.netmask if (environment_definition.drvm_setting.lnxvm.nic1.netmask is defined and environment_definition.drvm_setting.lnxvm.nic1.netmask != none) else '' }}"
+
+      # IPV6 pool
+      ipv6_pool: {{ environment_definition.drvm_setting.lnxvm.nic1.ipv6_pool if (environment_definition.drvm_setting.lnxvm.nic1.ipv6_pool is defined and environment_definition.drvm_setting.lnxvm.nic1.ipv6_pool != none) else [] }}
+
+      # IPV6 Gateway
+      ipv6_gtw: "{{ environment_definition.drvm_setting.lnxvm.nic1.ipv6_gtw if (environment_definition.drvm_setting.lnxvm.nic1.ipv6_gtw is defined and environment_definition.drvm_setting.lnxvm.nic1.ipv6_gtw != none) else '' }}"
+
+      # Net Name
+      netname: "{{ environment_definition.drvm_setting.lnxvm.nic1.netname if (environment_definition.drvm_setting.lnxvm.nic1.netname is defined and environment_definition.drvm_setting.lnxvm.nic1.netname != none) else '' }}"
+
+      # Net Base
+      netbase: "{{ environment_definition.drvm_setting.lnxvm.nic1.network if (environment_definition.drvm_setting.lnxvm.nic1.network is defined and environment_definition.drvm_setting.lnxvm.nic1.network != none) else '' }}"
+
+    # Network interface 2
+    ################
+    nic2:
+
+      # Interface name
+      intname: "{{ environment_definition.drvm_setting.lnxvm.nic2.intname if (environment_definition.drvm_setting.lnxvm.nic2.intname is defined and environment_definition.drvm_setting.lnxvm.nic2.intname != none) else 'ens192' }}"
+
+      # IP pool
+      ip_pool: {{ environment_definition.drvm_setting.lnxvm.nic2.ip_pool if (environment_definition.drvm_setting.lnxvm.nic2.ip_pool is defined and environment_definition.drvm_setting.lnxvm.nic2.ip_pool != none) else [] }}
+
+      # IP fourth octet pool
+      ip_octetpool: {{ environment_definition.drvm_setting.lnxvm.nic2.ip_octetpool if (environment_definition.drvm_setting.lnxvm.nic2.ip_octetpool is defined and environment_definition.drvm_setting.lnxvm.nic2.ip_octetpool != none) else [] }}
+
+      # Gateway
+      gtw: "{{ environment_definition.drvm_setting.lnxvm.nic2.gtw if (environment_definition.drvm_setting.lnxvm.nic2.gtw is defined and environment_definition.drvm_setting.lnxvm.nic2.gtw != none) else '' }}"
+
+      # Gateway fourth octet
+      gtw_octet: "{{ environment_definition.drvm_setting.lnxvm.nic2.gtw_octet if (environment_definition.drvm_setting.lnxvm.nic2.gtw_octet is defined and environment_definition.drvm_setting.lnxvm.nic2.gtw_octet != none) else '' }}"
+
+      # Netmask
+      netmask: "{{ environment_definition.drvm_setting.lnxvm.nic2.netmask if (environment_definition.drvm_setting.lnxvm.nic2.netmask is defined and environment_definition.drvm_setting.lnxvm.nic2.netmask != none) else '' }}"
+
+      # IPV6 pool
+      ipv6_pool: {{ environment_definition.drvm_setting.lnxvm.nic2.ipv6_pool if (environment_definition.drvm_setting.lnxvm.nic2.ipv6_pool is defined and environment_definition.drvm_setting.lnxvm.nic2.ipv6_pool != none) else [] }}
+
+      # IPV6 Gateway
+      ipv6_gtw: "{{ environment_definition.drvm_setting.lnxvm.nic2.ipv6_gtw if (environment_definition.drvm_setting.lnxvm.nic2.ipv6_gtw is defined and environment_definition.drvm_setting.lnxvm.nic2.ipv6_gtw != none) else '' }}"
+
+      # Net Name
+      netname: "{{ environment_definition.drvm_setting.lnxvm.nic2.netname if (environment_definition.drvm_setting.lnxvm.nic2.netname is defined and environment_definition.drvm_setting.lnxvm.nic2.netname != none) else '' }}"
+
+      # Net Base
+      netbase: "{{ environment_definition.drvm_setting.lnxvm.nic2.network if (environment_definition.drvm_setting.lnxvm.nic2.network is defined and environment_definition.drvm_setting.lnxvm.nic2.network != none) else '' }}"

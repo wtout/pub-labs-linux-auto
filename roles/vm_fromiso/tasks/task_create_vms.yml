@@ -1,0 +1,81 @@
+---
+# tasks file to create vms
+- block:
+  - name: create Hosted VMs
+    block:
+    - include_tasks:
+        file: task_create_folder_path.yml
+        apply:
+          vars:
+            curr_folder: "{{ myfolder }}"
+      when:
+        - crecon | default(true) | bool
+        - "'stack' in group_names"
+        - inventory_hostname == ansible_play_hosts | intersect(groups['stack']) | first
+    - include_tasks:
+        file: task_create_folder_path.yml
+        apply:
+          vars:
+            curr_folder: "{{ myfolder }}"
+      when:
+        - crecon | default(true) | bool
+        - build.disaster_recovery
+        - "'dr' in group_names"
+        - inventory_hostname == ansible_play_hosts | intersect(groups['dr']) | first
+    - block:
+      - name: get list of groups in play
+        ansible.builtin.set_fact:
+          play_group_list: "{{ play_group_list|default([]) | union([host_item[:-2]]) }}"
+        loop: "{{ ansible_play_hosts | reject('search', 'vcenter') | list }}"
+        loop_control:
+          loop_var: host_item
+          label: "{{ host_item }}"
+        when:
+          - inventory_hostname == ansible_play_hosts | intersect(groups['stack'] + groups['dr']) | first
+      - include_tasks:
+          file: task_create_vm_pair.yml
+          apply:
+            vars:
+              vm_group: "{{ group_item }}"
+        loop: "{{ play_group_list }}"
+        loop_control:
+          loop_var: group_item
+          label: "{{ group_item }}"
+        when: inventory_hostname in groups[group_item]
+      when:
+        - hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datastore_cluster'] == ''
+    - include_tasks: task_create_configure_vms.yml
+      when:
+        - hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datastore_cluster'] != ''
+    when:
+      - hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['deptype'] == 'h'
+
+  - name: create On-prem VMs
+    block:
+    - block:
+      - include_tasks:
+          file: task_create_folder_path.yml
+          apply:
+            vars:
+              curr_folder: "{{ myfolder }}"
+        when:
+          - crecon | default(true) | bool
+          - "'stack' in group_names"
+          - inventory_hostname == ansible_play_hosts | intersect(groups['stack']) | first
+      - include_tasks:
+          file: task_create_folder_path.yml
+          apply:
+            vars:
+              curr_folder: "{{ myfolder }}"
+        when:
+          - crecon | default(true) | bool
+          - build.disaster_recovery
+          - "'dr' in group_names"
+          - inventory_hostname == ansible_play_hosts | intersect(groups['dr']) | first
+      when: fldr_name != ''
+    - include_tasks: task_create_configure_vms.yml
+    when:
+      - hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['deptype'] == 'a'
+  vars:
+    firsthost: "{{ ansible_play_hosts | intersect(groups['dr'] if 'dr' in group_names else groups['stack']) | first }}"
+    myfolder: "{{ ('/' if hostvars[inventory_hostname]['datacenter']['secondary' if 'dr' in group_names else 'primary']['folder'] is not regex('^/') else '') + hostvars[inventory_hostname]['datacenter']['secondary' if 'dr' in group_names else 'primary']['folder'] }}"

@@ -1,0 +1,180 @@
+<!DOCTYPE Menu PUBLIC "-//freedesktop//DTD Menu 1.0//EN"
+  "http://www.freedesktop.org/standards/menu-spec/1.0/menu.dtd">
+
+<Menu>
+    <Name>Xfce</Name>
+
+    <DefaultAppDirs/>
+    <DefaultDirectoryDirs/>
+
+    <Include>
+        <Category>X-Xfce-Toplevel</Category>
+    </Include>
+    <Exclude>
+        <Or>
+            <Filename>xfce4-mail-reader.desktop</Filename>
+        </Or>
+    </Exclude>
+
+    <Layout>
+        <Filename>xfce4-run.desktop</Filename>
+        <Separator/>
+        <Filename>xfce4-terminal-emulator.desktop</Filename>
+        <Filename>xfce4-file-manager.desktop</Filename>
+        <Filename>xfce4-web-browser.desktop</Filename>
+        <Separator/>
+        <Menuname>Settings</Menuname>
+        <Separator/>
+        <Merge type="all"/>
+        <Separator/>
+        <Filename>xfce4-about.desktop</Filename>
+        <Filename>xfce4-session-logout.desktop</Filename>
+    </Layout>
+
+    <Menu>
+        <Name>Settings</Name>
+        <Directory>xfce-settings.directory</Directory>
+        <Include>
+            <Category>Settings</Category>
+        </Include>
+        <Exclude>
+            <Or>
+                <Filename>nm-connection-editor.desktop</Filename>
+                <Filename>software-properties-drivers.desktop</Filename>
+                <Filename>org.gnome.DiskUtility.desktop</Filename>
+                <Filename>xfce-keyboard-settings.desktop</Filename>
+                <Filename>panel-preferences.desktop</Filename>
+                <Filename>thunar-volman-settings.desktop</Filename>
+                <Filename>xfce-session-settings.desktop</Filename>
+                <Filename>xfce-settings-manager.desktop</Filename>
+                <Filename>xfce4-settings-editor.desktop</Filename>
+                <Filename>software-properties-gtk.desktop</Filename>
+                <Filename>update-manager.desktop</Filename>
+                <Filename>usb-creator-gtk.desktop</Filename>
+                <Filename>xfce-workspaces-settings.desktop</Filename>
+            </Or>
+        </Exclude>
+
+        <Menu>
+            <Name>Screensavers</Name>
+            <Directory>xfce-screensavers.directory</Directory>
+            <Include>
+                <Category>Screensaver</Category>
+            </Include>
+        </Menu>
+    </Menu>
+
+    <Menu>
+        <Name>Accessories</Name>
+        <Directory>xfce-accessories.directory</Directory>
+        <Include>
+            <Or>
+                <Category>Accessibility</Category>
+                <Category>Core</Category>
+                <Category>Legacy</Category>
+                <Category>Utility</Category>
+            </Or>
+        </Include>
+        <Exclude>
+            <Or>
+                <Filename>xfce4-file-manager.desktop</Filename>
+                <Filename>xfce4-terminal-emulator.desktop</Filename>
+                <Filename>xfce4-about.desktop</Filename>
+                <Filename>xfce4-run.desktop</Filename>
+                <Filename>org.gnome.DiskUtility.desktop</Filename>
+                <Filename>xfce4-sensors.desktop</Filename>
+                <Filename>xfburn.desktop</Filename>
+            </Or>
+        </Exclude>
+    </Menu>
+
+    <Menu>
+        <Name>Development</Name>
+        <Directory>xfce-development.directory</Directory>
+        <Include>
+            <Category>Development</Category>
+        </Include>
+    </Menu>
+
+    <Menu>
+        <Name>Education</Name>
+        <Directory>xfce-education.directory</Directory>
+        <Include>
+            <Category>Education</Category>
+        </Include>
+    </Menu>
+
+    <Menu>
+        <Name>Graphics</Name>
+        <Directory>xfce-graphics.directory</Directory>
+        <Include>
+            <Category>Graphics</Category>
+        </Include>
+        <Exclude>
+            <Or>
+                <Filename>simple-scan.desktop</Filename>
+            </Or>
+        </Exclude>
+    </Menu>
+
+    <Menu>
+        <Name>Multimedia</Name>
+        <Directory>xfce-multimedia.directory</Directory>
+        <Include>
+            <Category>Audio</Category>
+            <Category>Video</Category>
+            <Category>AudioVideo</Category>
+        </Include>
+        <Exclude>
+            <Or>
+                <Filename>org.gnome.Cheese.desktop</Filename>
+                <Filename>xfburn.desktop</Filename>
+            </Or>
+        </Exclude>
+    </Menu>
+
+    <Menu>
+        <Name>Network</Name>
+        <Directory>xfce-network.directory</Directory>
+        <Include>
+            <Category>Network</Category>
+        </Include>
+        <Exclude>
+            <Or>
+                <Filename>xfce4-mail-reader.desktop</Filename>
+                <Filename>xfce4-web-browser.desktop</Filename>
+                <Filename>thunderbird.desktop</Filename>
+                <Filename>transmission-gtk.desktop</Filename>
+            </Or>
+        </Exclude>
+    </Menu>
+
+    <Menu>
+        <Name>Office</Name>
+        <Directory>xfce-office.directory</Directory>
+        <Include>
+            <Category>Office</Category>
+        </Include>
+    </Menu>
+
+    <Menu>
+        <Name>System</Name>
+        <Directory>xfce-system.directory</Directory>
+        <Include>
+            <Or>
+                <Category>Emulator</Category>
+                <Category>System</Category>
+            </Or>
+        </Include>
+        <Exclude>
+            <Or>
+                <Filename>xfce4-session-logout.desktop</Filename>
+                <Filename>xfce4-sensors.desktop</Filename>
+                <Filename>update-manager.desktop</Filename>
+                <Filename>usb-creator-gtk.desktop</Filename>
+            </Or>
+        </Exclude>
+    </Menu>
+    <DefaultMergeDirs/>
+
+</Menu>

@@ -1,0 +1,36 @@
+---
+# tasks file for vm_hardening
+- block:
+  - name: check if VM exists
+    community.vmware.vmware_guest_info:
+      hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
+      username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
+      password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
+      datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
+      name: "{{ vm.name }}"
+      schema: vsphere
+      validate_certs: no
+    register: reg_vh_vm_exists
+    no_log: yes
+    delegate_to: localhost
+  - include_tasks: task_check_con_creds.yml
+  - block:
+    - include_tasks: task_download_hardening_auto.yml
+    - setup:
+    - include_role:
+        name: ansible-os_hardening
+        apply:
+          vars:
+            hardening_level: 1
+            set_rsyslog_remote_host: false
+            install_updates_and_patches: false
+    - include_tasks: task_delete_hardening_auto.yml
+    when:
+      - hardv | default(true) | bool
+  - include_tasks: task_root_never_expire.yml
+  rescue:
+    - ansible.builtin.debug:
+        msg: "VM does not exist. Nothing to do"
+      when: reg_vh_vm_exists is failed
+  when: harden_vms | default(false) | bool
+  tags: vm_hardening

@@ -1,0 +1,25 @@
+---
+# Tasks to delete the downloaded hardening roles
+- block:
+  - name: get the list of the downloaded roles
+    ansible.builtin.shell: |
+      grep src requirements.yml
+    register: reg_harden_roles
+    args:
+      chdir: "{{ auto_dir }}/roles/{{ hardening_reponame }}"
+  - name: define list of downloaded roles
+    ansible.builtin.set_fact:
+      downloaded_roles_list: "{{ downloaded_roles_list|default([hardening_reponame]) | union([role_item|split('/')|last|replace('.git','')]) }}"
+    loop: "{{ reg_harden_roles.stdout_lines }}"
+    loop_control:
+      loop_var: role_item
+  - name: delete downloaded roles
+    ansible.builtin.file:
+      path: "{{ auto_dir }}/roles/{{ role_item }}"
+      state: absent
+    loop: "{{ downloaded_roles_list }}"
+    loop_control:
+      loop_var: role_item
+    become: yes
+  delegate_to: localhost
+  run_once: true
