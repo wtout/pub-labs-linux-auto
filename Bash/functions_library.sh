@@ -202,7 +202,8 @@ function image_prune() {
 	local IIDLIST
 	CIID=$($(docker_cmd) images | grep -E "${CONTAINERREPO}.*${ANSIBLE_VERSION}" | awk '{print $3}')
 	[[ "${CIID}" == "" ]] && IIDLIST=$($(docker_cmd) images -a -q) || IIDLIST=$($(docker_cmd) images -a -q | grep -v "${CIID}")
-	[[ "${IIDLIST}" != "" ]] && $(docker_cmd) rmi "${IIDLIST}" -f
+	# shellcheck disable=SC2086
+	[[ "${IIDLIST}" != "" ]] && $(docker_cmd) rmi ${IIDLIST} -f
 }
 
 function check_image() {
@@ -446,14 +447,16 @@ function get_proxy() {
 }
 
 function add_write_permission() {
-	for i in "${@}"
+	# shellcheck disable=SC2068
+	for i in ${@}
 	do
 		sudo chmod o+w "${i}"
 	done
 }
 
 function remove_write_permission() {
-	for i in "${@}"
+	# shellcheck disable=SC2068
+	for i in ${@}
 	do
 		sudo chmod o-w "${i}"
 	done
